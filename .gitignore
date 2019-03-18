@@ -1,0 +1,7 @@
+vgg*
+resnet*
+inception*
+.vscode/
+code_model/
+datasets/*
+logs/*
