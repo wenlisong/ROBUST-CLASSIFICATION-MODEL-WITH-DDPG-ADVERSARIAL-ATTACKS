@@ -1,15 +1,8 @@
-"""
-Implementation of example defense.
-This defense loads inception v1 checkpoint and classifies all images using loaded checkpoint.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow as tf
 from tensorflow.contrib.slim.nets import inception
 slim = tf.contrib.slim
 from mytools import load_path_label
+from tqdm import tqdm
 
 tf.flags.DEFINE_string(
     'checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
@@ -75,9 +68,8 @@ def main(argv=None):
             acc_dict = {}
             for i in range(FLAGS.num_classes):
                 acc_dict[i] = [0, 0]
-            for images, true_labels in data_generator:
+            for images, true_labels in tqdm(data_generator):
                 labels = sess.run(predicted_labels, feed_dict={x_input: images})
-                print(labels, true_labels)
                 for i in range(len(true_labels)):
                     acc_dict[true_labels[i]][1] += 1
                     if labels[i] == true_labels[i]:
@@ -91,6 +83,8 @@ def main(argv=None):
                     total_true += acc_dict[i][0]
                     total_count += acc_dict[i][1]
                     f.writelines("class: %d, accuracy: %d/%d = %.3f \n" % (i, acc_dict[i][0], acc_dict[i][1], acc_dict[i][0] / acc_dict[i][1]))
+                
+                print("Total accuracy: %.3f \n" % (total_true / total_count))
                 f.writelines("Total accuracy: %.3f \n" % (total_true / total_count))
             
             print('Save accuracy result to %s' %FLAGS.output_file)
