@@ -1,3 +1,4 @@
+.DS_Store
 vgg*
 resnet*
 inception*
@@ -5,3 +6,4 @@ inception*
 code_model/
 datasets/*
 logs/*
+__pycache__/

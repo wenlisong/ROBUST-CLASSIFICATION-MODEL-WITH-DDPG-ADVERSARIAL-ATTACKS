@@ -9,6 +9,7 @@ from tensorflow.contrib.slim.nets import inception
 # import matplotlib.pyplot as plt
 import time
 from tqdm import tqdm
+from mytools import load_path_label
 # import pdb
 
 
@@ -31,7 +32,7 @@ MEMORY_CAPACITY = 10000
 OUTPUT_GRAPH = True
 
 tf.flags.DEFINE_string(
-    'checkpoint_path', './models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
+    'checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
 tf.flags.DEFINE_string(
     'ddpg_checkpoint_path', './models/ddpg/model', 'Path to checkpoint for ddpg network.')
 tf.flags.DEFINE_string(
@@ -244,16 +245,14 @@ class Memory(object):
 #####################  Load Image  ####################
 def load_images(input_dir):
     for filepath in tf.gfile.Glob(os.path.join(input_dir, '*.jpg')):
-        try:
-            with open(filepath, 'rb') as f:
-                raw_image = imread(f, mode='RGB')
-                image = imresize(raw_image, [FLAGS.image_height, FLAGS.image_width]).astype(np.float)
-                image = (image / 255.0) * 2.0 - 1.0
+        with open(filepath, 'rb') as f:
+            raw_image = imread(f, mode='RGB')
+            image = imresize(raw_image, [FLAGS.image_height, FLAGS.image_width]).astype(np.float)
+            image = (image / 255.0) * 2.0 - 1.0
 
-            filename = os.path.basename(filepath)
-            yield filename, image
-        except:
-            print("IMAGE LOAD ERROR, when load file: "+filepath)
+        filename = os.path.basename(filepath)
+        yield filename, image
+
 #####################  Compute Reward  ####################
 class Classifier(object):
     def __init__(self, input_shape, nb_classes):
@@ -304,13 +303,12 @@ if __name__ == "__main__":
     with tf.name_scope('S'):
         S = tf.placeholder(tf.float32, shape=[None]+state_dim, name='s')
     with tf.name_scope('R'):
-        R = tf.placeholder(tf.float32, [None, 1], name='r')
+        R = tf.placeholder(tf.float32, None, name='r')
     with tf.name_scope('S_'):
         S_ = tf.placeholder(tf.float32, shape=[None]+state_dim, name='s_')
 
     sess = tf.Session(config=config)
-    # Create actor and critic.
-    # They are actually connected to each other, details can be seen in tensorboard or in this picture:
+    # Create actor and critic
     actor = Actor(sess, action_dim, LR_A, REPLACEMENT)
     critic = Critic(sess, state_dim, action_dim, LR_C, GAMMA, REPLACEMENT, actor.a, actor.a_)
     actor.add_grad_to_graph(critic.a_grads)
@@ -329,30 +327,33 @@ if __name__ == "__main__":
     for episode in range(MAX_EPISODES):
         ep_reward = 0
         # load image
-        for lable in tqdm(os.listdir(FLAGS.input_dir)):
-            for filename, image in tqdm(load_images(os.path.join(FLAGS.input_dir,lable))):
-                # Add exploration noise
-                a = actor.choose_action(image)
-                a = np.clip(np.random.normal(a, var), -2, 2)    # add randomness to action selection for exploration
-                # s_, r, done, info = env.step(a)
-                r = classifier.get_reward(image, a, int(lable))
+        # for label in tqdm(os.listdir(FLAGS.input_dir)):
+        #     for filename, image in tqdm(load_images(os.path.join(FLAGS.input_dir,label))):
+        data = load_path_label("labels.txt", [1, FLAGS.image_height, FLAGS.image_width, 3])
+        for images, labels in data:
+            # Add exploration noise
+            a = actor.choose_action(images[0])
+            a = np.clip(np.random.normal(a, var), -2, 2)    # add randomness to action selection for exploration
+            # s_, r, done, info = env.step(a)
+            r = classifier.get_reward(images[0], a, labels[0])
 
-                M.store_transition(image, a, r / 10)
+            M.store_transition(images[0], a, r / 10)
 
-                if len(M.data) > MEMORY_CAPACITY:
-                # if len(M.data) > FLAGS.batch_size:
-                    var *= .9995    # decay the action randomness
-                    minibatch = M.sample(FLAGS.batch_size)
-                    b_s = [row[0] for row in minibatch]
-                    b_a = [row[0] for row in minibatch]
-                    b_r = [row[0] for row in minibatch]
-                    b_s_ = b_a
+            if len(M.data) > MEMORY_CAPACITY/2:
+            # if len(M.data) > FLAGS.batch_size:
+                var *= .9995    # decay the action randomness
+                minibatch = M.sample(FLAGS.batch_size)
+                b_s = [row[0] for row in minibatch]
+                b_a = [row[1] for row in minibatch]
+                b_r = [row[2] for row in minibatch]
+                b_s_ = b_a
 
-                    critic.learn(b_s, b_a, b_r, b_s_)
-                    actor.learn(b_s)
+                critic.learn(b_s, b_a, b_r, b_s_)
+                actor.learn(b_s)
 
-                # s = s_
-                ep_reward += r
+            # s = s_
+            ep_reward += r
+
         saver.save(sess, FLAGS.ddpg_checkpoint_path, global_step=episode)
         print('Episode:', episode, ' Reward: %i' % int(ep_reward), 'Explore: %.2f' % var, )
         print('Running time: ', time.time() - t1)
