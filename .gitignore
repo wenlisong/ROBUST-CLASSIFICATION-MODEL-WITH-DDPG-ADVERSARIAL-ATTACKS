@@ -7,3 +7,4 @@ code_model/
 datasets/*
 logs/*
 __pycache__/
+train_dir/*

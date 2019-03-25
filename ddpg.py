@@ -8,7 +8,6 @@ import random
 from tensorflow.contrib.slim.nets import inception
 # import matplotlib.pyplot as plt
 import time
-from tqdm import tqdm
 from mytools import load_path_label
 # import pdb
 
@@ -18,8 +17,6 @@ tf.set_random_seed(1)
 
 #####################  hyper parameters  ####################
 
-MAX_EPISODES = 200
-# MAX_EP_STEPS = 200
 LR_A = 0.001    # learning rate for actor
 LR_C = 0.001    # learning rate for critic
 GAMMA = 0.9     # reward discount
@@ -49,13 +46,17 @@ tf.flags.DEFINE_integer(
     'nb_pixel', 224*224*3, 'The number of pixelx in a image')
 tf.flags.DEFINE_integer(
     'num_classes', 110, 'How many classes of the data set')
+tf.app.flags.DEFINE_integer(
+    'max_ep_steps', 100, 'The number of epoch times')
+tf.app.flags.DEFINE_integer(
+    'max_steps', 100000, 'The number of training times')
 FLAGS = tf.flags.FLAGS
 tf.logging.set_verbosity(tf.logging.INFO)
 
 config = tf.ConfigProto()
 # allocate 50% of GPU memory
 config.gpu_options.allow_growth = True
-config.gpu_options.per_process_gpu_memory_fraction = 0.5
+# config.gpu_options.per_process_gpu_memory_fraction = 0.5
 ###############################  Actor  ####################################
 class Actor(object):
     def __init__(self, sess, action_dim, learning_rate, replacement):
@@ -195,14 +196,6 @@ class Critic(object):
                     flatten = tf.layers.flatten(maxpool3)
                 return flatten
             
-            # with tf.variable_scope('action_conv'):
-            #     a_conv1 = tf.layers.conv2d(self.a_dim, 64, (3, 3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='conv1', trainable=trainable)  # 224x224x64
-            #     a_maxpool1 = tf.layers.max_pooling2d(a_conv1, (2, 2), (2, 2), padding='same', name='maxpool1')  # 112x112x64
-            #     a_conv2 = tf.layers.conv2d(a_maxpool1, 32, (3, 3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='conv2', trainable=trainable)  # 112x112x32
-            #     a_maxpool2 = tf.layers.max_pooling2d(a_conv2, (2, 2), (2, 2), 'same', name='maxpool2')  # 56x56x32
-            #     a_conv3 = tf.layers.conv2d(a_maxpool2, 16, (3, 3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='conv3', trainable=trainable)  #56x56x16
-            #     a_maxpool3 = tf.layers.max_pooling2d(a_conv3, (2, 2), (2, 2), 'same', name='maxpool3')  #28x28x16
-            #     a_flatten= tf.layers.flatten(a_maxpool3)
             s = conv_desc('state_conv', s)
             a = conv_desc('action_conv', a)
             with tf.variable_scope('fcl1'):
@@ -323,14 +316,12 @@ if __name__ == "__main__":
 
     var = 3  # control exploration
 
-    t1 = time.time()
-    for episode in range(MAX_EPISODES):
+    start = time.time()
+    for episode in range(FLAGS.max_ep_steps):
         ep_reward = 0
-        # load image
-        # for label in tqdm(os.listdir(FLAGS.input_dir)):
-        #     for filename, image in tqdm(load_images(os.path.join(FLAGS.input_dir,label))):
-        data = load_path_label("labels.txt", [1, FLAGS.image_height, FLAGS.image_width, 3])
-        for images, labels in data:
+        data_generator = load_path_label("labels.txt", [1, FLAGS.image_height, FLAGS.image_width, 3])
+        for step in range(FLAGS.max_steps):
+            (images, labels) = next(data_generator)
             # Add exploration noise
             a = actor.choose_action(images[0])
             a = np.clip(np.random.normal(a, var), -2, 2)    # add randomness to action selection for exploration
@@ -339,8 +330,7 @@ if __name__ == "__main__":
 
             M.store_transition(images[0], a, r / 10)
 
-            if len(M.data) > MEMORY_CAPACITY/2:
-            # if len(M.data) > FLAGS.batch_size:
+            if len(M.data) > MEMORY_CAPACITY:
                 var *= .9995    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
@@ -354,6 +344,13 @@ if __name__ == "__main__":
             # s = s_
             ep_reward += r
 
+            if step % 10 == 0:
+                avg_time_per_step = (time.time() - start)/10
+                avg_examples_per_second = (10 * FLAGS.batch_size) /(time.time() - start)
+                start = time.time()
+                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, {:.2f} examples/second, ep_reward: {:.3f}, Explore: {:.3f}'.format(
+                    episode, step, avg_time_per_step,
+                    avg_examples_per_second, ep_reward, var))
+
         saver.save(sess, FLAGS.ddpg_checkpoint_path, global_step=episode)
-        print('Episode:', episode, ' Reward: %i' % int(ep_reward), 'Explore: %.2f' % var, )
-        print('Running time: ', time.time() - t1)
+        print('Running time: ', time.time() - start)
