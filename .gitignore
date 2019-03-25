@@ -4,7 +4,9 @@ resnet*
 inception*
 .vscode/
 code_model/
-datasets/*
 logs/*
 __pycache__/
 train_dir/*
+datasets/IJCAI*
+datasets/dev_data
+datasets/nontarget-attack
