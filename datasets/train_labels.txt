@@ -6218,7 +6218,6 @@
 ./datasets/IJCAI_2019_AAAC_train/00012/8e194de60a8eba948072d76f4d927e75.jpg	12
 ./datasets/IJCAI_2019_AAAC_train/00012/9974343a8d9c9760d403c45054f1552b.jpg	12
 ./datasets/IJCAI_2019_AAAC_train/00012/1ca9aa3dc1147d693712b1b0bf9ffa34.jpg	12
-./datasets/IJCAI_2019_AAAC_train/00012/1e19e7fa7da1641e786b69dc8eed9daa.jpg	12
 ./datasets/IJCAI_2019_AAAC_train/00012/0d339f0ea912f82522294c89a62e1a94.jpg	12
 ./datasets/IJCAI_2019_AAAC_train/00012/775bf4879f3d4cca6b302e52a333ac0f.jpg	12
 ./datasets/IJCAI_2019_AAAC_train/00012/0dc0806bcb5dac9468d38ed2bcceda65.jpg	12

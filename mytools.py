@@ -2,6 +2,7 @@ import os
 import numpy as np
 import random
 from scipy.misc import imread, imresize
+from PIL import Image
 
 def generate_txt_label(ROOT_DIR = "./datasets/IJCAI_2019_AAAC_train"):
     with open("./labels.txt", "w") as f:
@@ -32,9 +33,10 @@ def load_path_label(fname=None, batch_shape=None, separator='\t', shuffle=True, 
         for x in lines:
             x = x.strip().split(separator)
             filepath = x[0]
-            with open(filepath, 'rb') as img:
-                raw_image = imread(img, mode='RGB')
-                image = preprocessor(raw_image)
+            # with open(filepath, 'rb') as img:
+                # raw_image = imread(img, mode='RGB')
+            raw_image = Image.open(filepath).convert('RGB')
+            image = preprocessor(raw_image)
             images[idx, :, :, :] = image
             if onehot:
                 labels[idx, int(x[1])] = 1

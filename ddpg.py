@@ -33,7 +33,7 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_string(
     'ddpg_checkpoint_path', './models/ddpg/model', 'Path to checkpoint for ddpg network.')
 tf.flags.DEFINE_string(
-    'input_dir', './datasets/IJCAI_2019_AAAC_train', 'Input directory with images.')
+    'input_dir', './datasets/train_labels.txt', 'Input directory with images.')
 tf.flags.DEFINE_string(
     'output_file', './output-defense.txt', 'Output file to save labels.')
 tf.flags.DEFINE_integer(
@@ -66,6 +66,7 @@ class Actor(object):
         self.lr = learning_rate
         self.replacement = replacement
         self.t_replace_counter = 0
+        self.epsilon = 1e-12
 
         with tf.variable_scope('Actor'):
             # input s, output a
@@ -112,6 +113,7 @@ class Actor(object):
                 #                           bias_initializer=init_b, name='a', trainable=trainable)
                 actions = tf.layers.conv2d(deconv3, 3, (3,3), padding='same', kernel_initializer=init_w, bias_initializer=init_b, name='a', trainable=trainable)
                 # scaled_a = tf.multiply(actions, self.action_bound, name='scaled_a')  # Scale output to -action_bound to action_bound
+
         return actions
 
     def learn(self, s):   # batch update
@@ -126,7 +128,15 @@ class Actor(object):
 
     def choose_action(self, s):
         s = s[np.newaxis, :]  # single state
-        return self.sess.run(self.a, feed_dict={S: s})[0]  # single action
+        action = self.sess.run(self.a, feed_dict={S: s})[0] # single action
+        # scale action to [-1, 1]
+        for i in range(action.shape[2]):
+            cur_channel = action[:, :, i]
+            min_val = np.min(cur_channel)
+            max_val = np.max(cur_channel)
+            action[:, :, i] = (cur_channel - min_val + self.epsilon) / max((max_val - min_val), 2 * self.epsilon)
+        action = action * 2 -1
+        return action
 
     def add_grad_to_graph(self, a_grads):
         with tf.variable_scope('policy_grads'):
@@ -256,7 +266,6 @@ class Classifier(object):
         self.restore_model()
 
     def restore_model(self):
-        # with tf.device('/device:GPU:1'):
         with tf.Graph().as_default():
             # Prepare graph
             self.x_input = tf.placeholder(tf.float32, shape=self.input_shape)
@@ -276,7 +285,7 @@ class Classifier(object):
         pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: a[tf.newaxis, :]})
         
         if pre_labels[0] == label:
-            r = 0
+            r = -1
         else:
             l2_dist = np.linalg.norm(a-s)
             r = -np.log(l2_dist / FLAGS.nb_pixel + 0.4) * 1.1
@@ -288,9 +297,6 @@ if __name__ == "__main__":
     action_dim = [FLAGS.image_height, FLAGS.image_width, 3]
     batch_shape = [FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 3]
     # action_bound = None
-
-    # initialization classifier
-    classifier = Classifier([None]+action_dim, FLAGS.num_classes)
 
     # all placeholder for tf
     with tf.name_scope('S'):
@@ -307,24 +313,28 @@ if __name__ == "__main__":
     actor.add_grad_to_graph(critic.a_grads)
 
     sess.run(tf.global_variables_initializer())
-    saver = tf.train.Saver(max_to_keep=5, keep_checkpoint_every_n_hours=1)
+    ac_var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'Actor') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Critic')
+    ac_saver = tf.train.Saver(ac_var_list, max_to_keep=3, keep_checkpoint_every_n_hours=1)
 
+    # initialization classifier
+    classifier = Classifier([None] + action_dim, FLAGS.num_classes)
+    
     M = Memory(MEMORY_CAPACITY)
 
-    if OUTPUT_GRAPH:
-        tf.summary.FileWriter("logs/", sess.graph)
+    # if OUTPUT_GRAPH:
+    #     tf.summary.FileWriter("./logs/", sess.graph)
 
     var = 3  # control exploration
 
     start = time.time()
     for episode in range(FLAGS.max_ep_steps):
         ep_reward = 0
-        data_generator = load_path_label("labels.txt", [1, FLAGS.image_height, FLAGS.image_width, 3])
+        data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
         for step in range(FLAGS.max_steps):
             (images, labels) = next(data_generator)
             # Add exploration noise
             a = actor.choose_action(images[0])
-            a = np.clip(np.random.normal(a, var), -2, 2)    # add randomness to action selection for exploration
+            a = np.clip(np.random.normal(a, var), -1, 1)    # add randomness to action selection for exploration
             # s_, r, done, info = env.step(a)
             r = classifier.get_reward(images[0], a, labels[0])
 
@@ -352,5 +362,5 @@ if __name__ == "__main__":
                     episode, step, avg_time_per_step,
                     avg_examples_per_second, ep_reward, var))
 
-        saver.save(sess, FLAGS.ddpg_checkpoint_path, global_step=episode)
+        ac_saver.save(sess, FLAGS.ddpg_checkpoint_path, global_step=episode)
         print('Running time: ', time.time() - start)
