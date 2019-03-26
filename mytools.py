@@ -55,8 +55,9 @@ def load_path_label(fname=None, batch_shape=None, separator='\t', shuffle=True, 
             yield images, labels
 
 if __name__ == "__main__":
-    generate_txt_label()
+    # generate_txt_label()
     #data = load_path_label("./labels.txt", batch_shape=[4, 224, 224, 3])
     #for images, labels in data:
     #    print(images, labels)
     #    import pdb; pdb.set_trace()
+    pass

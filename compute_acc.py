@@ -37,6 +37,10 @@ def main(argv=None):
     nb_classes = FLAGS.num_classes
 
     tf.logging.set_verbosity(tf.logging.INFO)
+    config = tf.ConfigProto()
+    # allocate 50% of GPU memory
+    config.gpu_options.allow_growth = True
+    config.gpu_options.per_process_gpu_memory_fraction = 0.5
 
     with tf.Graph().as_default():
         print("Prepare graph...")
@@ -51,6 +55,7 @@ def main(argv=None):
         print("Restore Model...")
         saver = tf.train.Saver(slim.get_model_variables())
         session_creator = tf.train.ChiefSessionCreator(
+            config=config,
             scaffold=tf.train.Scaffold(saver=saver),
             checkpoint_filename_with_path=FLAGS.checkpoint_path)
         
