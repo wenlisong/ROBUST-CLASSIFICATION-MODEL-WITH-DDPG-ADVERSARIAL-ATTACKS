@@ -6,7 +6,6 @@ from scipy.misc import imresize
 from collections import deque
 import random
 from tensorflow.contrib.slim.nets import inception
-# import matplotlib.pyplot as plt
 import time
 from mytools import load_path_label
 # import pdb
@@ -284,11 +283,19 @@ class Classifier(object):
     def get_reward(self, s, a, label):
         pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: a[tf.newaxis, :]})
         
+        # import matplotlib.pyplot as plt
+        # f = plt.figure()
+        # f.add_subplot(1, 2, 1)
+        # plt.imshow((s + 1.0) / 2.0)
+        # f.add_subplot(1, 2, 2)
+        # plt.imshow((a + 1.0) / 2.0)
+        # plt.show(block=True)
+
         if pre_labels[0] == label:
             r = -1
         else:
-            l2_dist = np.linalg.norm(a-s)
-            r = -np.log(l2_dist / FLAGS.nb_pixel + 0.4) * 1.1
+            l2_dist = np.linalg.norm((a - s + 1.0) * 255.0 / 2.0)
+            r = -np.power(2.0, l2_dist / 128.0) + 2.0
         return r
 
 #####################  Main  ####################
@@ -328,7 +335,7 @@ if __name__ == "__main__":
 
     start = time.time()
     for episode in range(FLAGS.max_ep_steps):
-        ep_reward = 0
+        ep_reward = 0.0
         data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
         for step in range(FLAGS.max_steps):
             (images, labels) = next(data_generator)

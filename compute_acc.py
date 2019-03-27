@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.contrib.slim.nets import inception
 slim = tf.contrib.slim
 from mytools import load_path_label
+from tqdm import tqdm
 
 tf.flags.DEFINE_string(
     'checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
@@ -72,16 +73,13 @@ def main(argv=None):
             acc_dict = {}
             for i in range(FLAGS.num_classes):
                 acc_dict[i] = [0, 0]
-            batch_count = 0
-            for images, true_labels in data_generator:
+                
+            for images, true_labels in tqdm(data_generator):
                 labels = sess.run(predicted_labels, feed_dict={x_input: images})
                 for i in range(len(true_labels)):
                     acc_dict[true_labels[i]][1] += 1
                     if labels[i] == true_labels[i]:
                         acc_dict[true_labels[i]][0] += 1
-                batch_count += 1
-                if batch_count % 10 == 0:
-                    print(batch_count)
             
             print("Compute accuracy...")
             with open(FLAGS.output_file, 'w') as f:

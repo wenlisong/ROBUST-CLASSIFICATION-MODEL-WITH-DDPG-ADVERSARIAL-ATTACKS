@@ -5,7 +5,7 @@ from scipy.misc import imread, imresize
 from PIL import Image
 
 def generate_txt_label(ROOT_DIR = "./datasets/IJCAI_2019_AAAC_train"):
-    with open("./labels.txt", "w") as f:
+    with open("./datasets/labels.txt", "w") as f:
         for label in os.listdir(ROOT_DIR):
             SUBSET_DIR = os.path.join(ROOT_DIR, label)
             for imagename in os.listdir(SUBSET_DIR):
@@ -55,9 +55,9 @@ def load_path_label(fname=None, batch_shape=None, separator='\t', shuffle=True, 
             yield images, labels
 
 if __name__ == "__main__":
-    # generate_txt_label()
+    generate_txt_label()
     #data = load_path_label("./labels.txt", batch_shape=[4, 224, 224, 3])
     #for images, labels in data:
     #    print(images, labels)
     #    import pdb; pdb.set_trace()
-    pass
+    # pass
