@@ -1,5 +1,5 @@
-CUDA_VISIBLE_DEVICES= python ddpg.py
-ssh wlsong@gpu19.cse.cuhk.edu.hk
+CUDA_VISIBLE_DEVICES=1,2 python ddpg.py
+ssh wlsong@gpu11.cse.cuhk.edu.hk
 wlsong@gpu19.cse.cuhk.edu.hk:/research/ksleung5/wlsong/ali/
 CUDA_VISIBLE_DEVICES=0 python 
 

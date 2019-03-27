@@ -295,7 +295,7 @@ class Classifier(object):
             r = -1
         else:
             l2_dist = np.linalg.norm((a - s + 1.0) * 255.0 / 2.0)
-            r = -np.power(2, l2_dist/128)+2
+            r = -np.power(2.0, l2_dist / 128.0) + 2.0
         return r
 
 #####################  Main  ####################
@@ -335,7 +335,7 @@ if __name__ == "__main__":
 
     start = time.time()
     for episode in range(FLAGS.max_ep_steps):
-        ep_reward = 0
+        ep_reward = 0.0
         data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
         for step in range(FLAGS.max_steps):
             (images, labels) = next(data_generator)
