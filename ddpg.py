@@ -54,7 +54,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 config = tf.ConfigProto()
 # allocate 50% of GPU memory
-config.gpu_options.allow_growth = True
+# config.gpu_options.allow_growth = True
 # config.gpu_options.per_process_gpu_memory_fraction = 0.5
 ###############################  Actor  ####################################
 class Actor(object):
