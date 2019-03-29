@@ -30,7 +30,7 @@ OUTPUT_GRAPH = True
 tf.flags.DEFINE_string(
     'checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
 tf.flags.DEFINE_string(
-    'ddpg_checkpoint_path', './models/ddpg/model', 'Path to checkpoint for ddpg network.')
+    'ddpg_checkpoint_path', './models/ddpg/', 'Path to checkpoint for ddpg network.')
 tf.flags.DEFINE_string(
     'input_dir', './datasets/train_labels.txt', 'Input directory with images.')
 tf.flags.DEFINE_string(
@@ -295,7 +295,10 @@ class Classifier(object):
             r = -1
         else:
             l2_dist = np.linalg.norm((a - s + 1.0) * 255.0 / 2.0)
-            r = -np.power(2.0, l2_dist / 128.0) + 2.0
+            if l2_dist >= 128:
+                r = -1
+            else:
+                r = -np.power(2.0, l2_dist / 128.0) + 2.0
         return r
 
 #####################  Main  ####################
@@ -321,7 +324,12 @@ if __name__ == "__main__":
 
     sess.run(tf.global_variables_initializer())
     ac_var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'Actor') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Critic')
-    ac_saver = tf.train.Saver(ac_var_list, max_to_keep=3, keep_checkpoint_every_n_hours=1)
+    ac_saver = tf.train.Saver(ac_var_list, max_to_keep=3)
+    if not tf.gfile.Exists(FLAGS.ddpg_checkpoint_path):
+        tf.gfile.MkDir(FLAGS.ddpg_checkpoint_path)
+    else:
+        if tf.train.latest_checkpoint(FLAGS.ddpg_checkpoint_path):
+            ac_saver.restore(sess, tf.train.latest_checkpoint(FLAGS.ddpg_checkpoint_path))
 
     # initialization classifier
     classifier = Classifier([None] + action_dim, FLAGS.num_classes)
@@ -331,7 +339,7 @@ if __name__ == "__main__":
     # if OUTPUT_GRAPH:
     #     tf.summary.FileWriter("./logs/", sess.graph)
 
-    var = 3  # control exploration
+    # var = 3.0  # control exploration
 
     start = time.time()
     for episode in range(FLAGS.max_ep_steps):
@@ -341,14 +349,14 @@ if __name__ == "__main__":
             (images, labels) = next(data_generator)
             # Add exploration noise
             a = actor.choose_action(images[0])
-            a = np.clip(np.random.normal(a, var), -1, 1)    # add randomness to action selection for exploration
+            # a = np.clip(np.random.normal(a, var), -1, 1)    # add randomness to action selection for exploration
             # s_, r, done, info = env.step(a)
             r = classifier.get_reward(images[0], a, labels[0])
 
             M.store_transition(images[0], a, r / 10)
 
-            if len(M.data) > MEMORY_CAPACITY:
-                var *= .9995    # decay the action randomness
+            if episode > 0 or step > MEMORY_CAPACITY:
+                # var *= .9995    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
                 b_a = [row[1] for row in minibatch]
@@ -365,9 +373,10 @@ if __name__ == "__main__":
                 avg_time_per_step = (time.time() - start)/10
                 avg_examples_per_second = (10 * FLAGS.batch_size) /(time.time() - start)
                 start = time.time()
-                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, {:.2f} examples/second, ep_reward: {:.3f}, Explore: {:.3f}'.format(
+                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, {:.2f} examples/second, cur_reward: {:.3f}, ep_reward: {:.3f}, Explore: {:.3f}'.format(
                     episode, step, avg_time_per_step,
-                    avg_examples_per_second, ep_reward, var))
-
-        ac_saver.save(sess, FLAGS.ddpg_checkpoint_path, global_step=episode)
+                    avg_examples_per_second, r, ep_reward, 0))
+            if (step + 1) % 10000 == 0:
+                ac_saver.save(sess, FLAGS.ddpg_checkpoint_path+"model", global_step=episode)
+        
         print('Running time: ', time.time() - start)
