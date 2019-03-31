@@ -284,8 +284,8 @@ class Classifier(object):
             self.sess = tf.train.MonitoredSession(session_creator=session_creator)
 
     def get_reward(self, s, a, label):
-        noise_image = s + a[tf.newaxis, :]
-        pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_image})
+        noise_image = s + a
+        pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_image[tf.newaxis, :]})
         
         # import matplotlib.pyplot as plt
         # f = plt.figure()
@@ -359,7 +359,8 @@ if __name__ == "__main__":
             r = classifier.get_reward(images[0], a, labels[0])
             if r > 0.0:
                 done = True
-                imsave(FLAGS.output_dir+filepaths[0].split('/')[-1], a)
+                imsave(FLAGS.output_dir + filepaths[0].split('/')[-1], (s + a + 1.0) * 255.0 / 2.0)
+                
 
             M.store_transition(images[0], a, r)
 
