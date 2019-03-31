@@ -24,6 +24,7 @@ def load_path_label(fname=None, batch_shape=None, separator='\t', shuffle=True, 
         labels = np.zeros([batch_size, bn_classes], dtype=np.float32)
     else:
         labels = []
+    filepaths = []
     idx = 0
 
     with open(fname, 'r') as f:
@@ -42,17 +43,19 @@ def load_path_label(fname=None, batch_shape=None, separator='\t', shuffle=True, 
                 labels[idx, int(x[1])] = 1
             else:
                 labels.append(int(x[1]))
+            filepaths.append(filepath)
             idx += 1
             if idx == batch_size:
-                yield images, labels
+                yield images, labels, filepaths
                 images = np.zeros(batch_shape)
                 if onehot:
                     labels = np.zeros([batch_size, bn_classes])
                 else:
                     labels = []
+                filepaths = []
                 idx = 0
         if idx > 0:
-            yield images, labels
+            yield images, labels, filepaths
 
 if __name__ == "__main__":
     generate_txt_label()

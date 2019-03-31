@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 from scipy.misc import imread
 from scipy.misc import imresize
+from scipy.misc import imsave
 from collections import deque
 import random
 from tensorflow.contrib.slim.nets import inception
@@ -30,9 +31,11 @@ OUTPUT_GRAPH = True
 tf.flags.DEFINE_string(
     'checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
 tf.flags.DEFINE_string(
-    'ddpg_checkpoint_path', './models/ddpg/', 'Path to checkpoint for ddpg network.')
+    'ddpg_checkpoint_path', './models/ddpg2/', 'Path to checkpoint for ddpg network.')
 tf.flags.DEFINE_string(
     'input_dir', './datasets/train_labels.txt', 'Input directory with images.')
+tf.flags.DEFINE_string(
+    'output_dir', './output-example/', 'Output directory to save adversarial image.')
 tf.flags.DEFINE_string(
     'output_file', './output-defense.txt', 'Output file to save labels.')
 tf.flags.DEFINE_integer(
@@ -342,20 +345,24 @@ if __name__ == "__main__":
     # var = 3.0  # control exploration
 
     start = time.time()
+    data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
     for episode in range(FLAGS.max_ep_steps):
         ep_reward = 0.0
-        data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
-        for step in range(FLAGS.max_steps):
-            (images, labels, _) = next(data_generator)
+        step = 0
+        done = False
+        (images, labels, filepaths) = next(data_generator)
+        while not done:
             # Add exploration noise
             a = actor.choose_action(images[0])
             # a = np.clip(np.random.normal(a, var), -1, 1)    # add randomness to action selection for exploration
-            # s_, r, done, info = env.step(a)
             r = classifier.get_reward(images[0], a, labels[0])
+            if r > 0.0:
+                done = True
+                imsave(FLAGS.output_dir+filepaths[0].split('/')[-1], a)
 
-            M.store_transition(images[0], a, r / 10)
+            M.store_transition(images[0], a, r)
 
-            if episode > 0 or step > MEMORY_CAPACITY:
+            if episode > 0 or step > MEMORY_CAPACITY / 100:
                 # var *= .9995    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
@@ -377,6 +384,8 @@ if __name__ == "__main__":
                     episode, step, avg_time_per_step,
                     avg_examples_per_second, r, ep_reward, 0))
             if (step + 1) % 10000 == 0:
-                ac_saver.save(sess, FLAGS.ddpg_checkpoint_path+"model", global_step=episode)
+                ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
+            
+            step += 1
         
         print('Running time: ', time.time() - start)
