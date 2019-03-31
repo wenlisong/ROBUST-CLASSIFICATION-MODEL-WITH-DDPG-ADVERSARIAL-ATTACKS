@@ -298,10 +298,10 @@ class Classifier(object):
             r = -1
         else:
             l2_dist = np.linalg.norm((a - s + 1.0) * 255.0 / 2.0)
-            if l2_dist >= 128:
+            if l2_dist >= 1280:
                 r = -1
             else:
-                r = -np.power(2.0, l2_dist / 128.0) + 2.0
+                r = -np.power(2.0, l2_dist / 1280.0) + 2.0
         return r
 
 #####################  Main  ####################
@@ -383,9 +383,8 @@ if __name__ == "__main__":
                 print('Episode:{}, Step {:06d}, {:.2f} seconds/step, {:.2f} examples/second, cur_reward: {:.3f}, ep_reward: {:.3f}, Explore: {:.3f}'.format(
                     episode, step, avg_time_per_step,
                     avg_examples_per_second, r, ep_reward, 0))
-            if (step + 1) % 10000 == 0:
-                ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
             
             step += 1
+        ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
         
         print('Running time: ', time.time() - start)
