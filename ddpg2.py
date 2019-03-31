@@ -35,7 +35,7 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_string(
     'input_dir', './datasets/train_labels.txt', 'Input directory with images.')
 tf.flags.DEFINE_string(
-    'output_dir', './output-example/', 'Output directory to save adversarial image.')
+    'output_dir', './output-example2/', 'Output directory to save adversarial image.')
 tf.flags.DEFINE_string(
     'output_file', './output-defense.txt', 'Output file to save labels.')
 tf.flags.DEFINE_integer(

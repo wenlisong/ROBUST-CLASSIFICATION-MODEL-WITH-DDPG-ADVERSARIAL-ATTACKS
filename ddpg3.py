@@ -31,9 +31,11 @@ OUTPUT_GRAPH = True
 tf.flags.DEFINE_string(
     'checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
 tf.flags.DEFINE_string(
-    'ddpg_checkpoint_path', './models/ddpg/', 'Path to checkpoint for ddpg network.')
+    'ddpg_checkpoint_path', './models/ddpg3/', 'Path to checkpoint for ddpg network.')
 tf.flags.DEFINE_string(
     'input_dir', './datasets/train_labels.txt', 'Input directory with images.')
+tf.flags.DEFINE_string(
+    'output_dir', './output-example3/', 'Output directory to save adversarial image.')
 tf.flags.DEFINE_string(
     'output_file', './output-defense.txt', 'Output file to save labels.')
 tf.flags.DEFINE_integer(
