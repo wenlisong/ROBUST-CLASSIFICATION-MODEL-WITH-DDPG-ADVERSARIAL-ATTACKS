@@ -34,6 +34,8 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_string(
     'input_dir', './datasets/train_labels.txt', 'Input directory with images.')
 tf.flags.DEFINE_string(
+    'output_dir', './output-example1/', 'Output directory to save adversarial image.')
+tf.flags.DEFINE_string(
     'output_file', './output-defense.txt', 'Output file to save labels.')
 tf.flags.DEFINE_integer(
     'image_width', 224, 'Width of each input images.')
@@ -46,7 +48,7 @@ tf.flags.DEFINE_integer(
 tf.flags.DEFINE_integer(
     'num_classes', 110, 'How many classes of the data set')
 tf.app.flags.DEFINE_integer(
-    'max_ep_steps', 100, 'The number of epoch times')
+    'max_ep_steps', 10000, 'The number of epoch times')
 tf.app.flags.DEFINE_integer(
     'max_steps', 100000, 'The number of training times')
 FLAGS = tf.flags.FLAGS
@@ -85,33 +87,107 @@ class Actor(object):
                                  for t, e in zip(self.t_params, self.e_params)]
 
     def _build_net(self, s, scope, trainable):
-        with tf.variable_scope(scope):
-            init_w = tf.random_normal_initializer(0., 0.3)
-            init_b = tf.constant_initializer(0.1)
-            # net = tf.layers.dense(s, 30, activation=tf.nn.relu,
-            #                       kernel_initializer=init_w, bias_initializer=init_b, name='l1',
-            #                       trainable=trainable)
-            # encoder
-            conv1 = tf.layers.conv2d(s, 64, (3, 3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='conv1', trainable=trainable)  # 224x224x64
-            maxpool1 = tf.layers.max_pooling2d(conv1, (2, 2), (2, 2), padding='same', name='maxpool1')  # 112x112x64
-            conv2 = tf.layers.conv2d(maxpool1, 32, (3, 3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='conv2', trainable=trainable)  # 112x112x32
-            maxpool2 = tf.layers.max_pooling2d(conv2, (2, 2), (2, 2), 'same', name='maxpool2')  # 56x56x32
-            conv3 = tf.layers.conv2d(maxpool2, 16, (3, 3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='conv3', trainable=trainable)  #56x56x16
-            maxpool3 = tf.layers.max_pooling2d(conv3, (2, 2), (2, 2), 'same', name='maxpool3')  #28x28x16
-            
-            # decoder
-            upsample1 = tf.image.resize_nearest_neighbor(maxpool3, (56, 56))
-            deconv1 = tf.layers.conv2d_transpose(upsample1, 32, (3,3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='deconv1', trainable=trainable)
-            upsample2 = tf.image.resize_nearest_neighbor(deconv1, (112, 112))
-            deconv2 = tf.layers.conv2d_transpose(upsample2, 64, (3,3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='deconv2', trainable=trainable)
-            upsample3 = tf.image.resize_nearest_neighbor(deconv2, (224, 224))
-            deconv3 = tf.layers.conv2d_transpose(upsample3, 64, (3,3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='deconv3', trainable=trainable)
+        # use inception v1 end_points['Mixed_5c'] extract feature
+        # s shape = [None, 7, 7, 1024]    
+        with tf.variable_scope(scope): 
+            # Generator
 
-            with tf.variable_scope('a'):
-                # actions = tf.layers.dense(net, self.a_dim, activation=tf.nn.tanh, kernel_initializer=init_w,
-                #                           bias_initializer=init_b, name='a', trainable=trainable)
-                actions = tf.layers.conv2d(deconv3, 3, (3,3), padding='same', kernel_initializer=init_w, bias_initializer=init_b, name='a', trainable=trainable)
-                # scaled_a = tf.multiply(actions, self.action_bound, name='scaled_a')  # Scale output to -action_bound to action_bound
+            # Leaky ReLU
+            fc1 = tf.nn.leaky_relu(s)
+
+            # Transposed conv 1 --> BatchNorm --> LeakyReLU
+            # 7x7x1024 --> 14x14x512
+            trans_conv1 = tf.layers.conv2d_transpose(inputs = fc1,
+                                    filters = 512,
+                                    kernel_size = [5,5],
+                                    strides = [2,2],
+                                    padding = "SAME",
+                                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                                    name="trans_conv1")
+            
+            batch_trans_conv1 = tf.layers.batch_normalization(inputs = trans_conv1, training=trainable, epsilon=1e-5, name="batch_trans_conv1")
+        
+            trans_conv1_out = tf.nn.leaky_relu(batch_trans_conv1, name="trans_conv1_out")
+            
+            # Transposed conv 2 --> BatchNorm --> LeakyReLU
+            # 14x14x512 --> 28x28x256
+            trans_conv2 = tf.layers.conv2d_transpose(inputs = trans_conv1_out,
+                                    filters = 256,
+                                    kernel_size = [5,5],
+                                    strides = [2,2],
+                                    padding = "SAME",
+                                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                                    name="trans_conv2")
+            
+            batch_trans_conv2 = tf.layers.batch_normalization(inputs = trans_conv2, training=trainable, epsilon=1e-5, name="batch_trans_conv2")
+        
+            trans_conv2_out = tf.nn.leaky_relu(batch_trans_conv2, name="trans_conv2_out")
+            
+            # Transposed conv 3 --> BatchNorm --> LeakyReLU
+            # 28x28x256 --> 56x56x128
+            trans_conv3 = tf.layers.conv2d_transpose(inputs = trans_conv2_out,
+                                    filters = 128,
+                                    kernel_size = [5,5],
+                                    strides = [2,2],
+                                    padding = "SAME",
+                                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                                    name="trans_conv3")
+            
+            batch_trans_conv3 = tf.layers.batch_normalization(inputs = trans_conv3, training=trainable, epsilon=1e-5, name="batch_trans_conv3")
+        
+            trans_conv3_out = tf.nn.leaky_relu(batch_trans_conv3, name="trans_conv3_out")
+            
+            # Transposed conv 4 --> BatchNorm --> LeakyReLU
+            # 56x56x128 --> 112x112x64
+            trans_conv4 = tf.layers.conv2d_transpose(inputs = trans_conv3_out,
+                                    filters = 64,
+                                    kernel_size = [5,5],
+                                    strides = [2,2],
+                                    padding = "SAME",
+                                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                                    name="trans_conv4")
+            
+            batch_trans_conv4 = tf.layers.batch_normalization(inputs = trans_conv4, training=trainable, epsilon=1e-5, name="batch_trans_conv4")
+        
+            trans_conv4_out = tf.nn.leaky_relu(batch_trans_conv4, name="trans_conv4_out")
+
+            # Transposed conv 5 --> BatchNorm --> LeakyReLU
+            # 112x112x64 --> 224x224x64
+            trans_conv5 = tf.layers.conv2d_transpose(inputs = trans_conv4_out,
+                                    filters = 64,
+                                    kernel_size = [5,5],
+                                    strides = [2,2],
+                                    padding = "SAME",
+                                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                                    name="trans_conv5")
+            
+            batch_trans_conv5 = tf.layers.batch_normalization(inputs = trans_conv5, training=trainable, epsilon=1e-5, name="batch_trans_conv5")
+        
+            trans_conv5_out = tf.nn.leaky_relu(batch_trans_conv5, name="trans_conv5_out")
+            
+            # Transposed conv 6 --> tanh
+            # 224x224x64 --> 224x224x3
+            logits = tf.layers.conv2d_transpose(inputs = trans_conv5_out,
+                                    filters = 3,
+                                    kernel_size = [5,5],
+                                    strides = [1,1],
+                                    padding = "SAME",
+                                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                                    name="logits")
+            
+            actions = tf.tanh(logits, name="actions")
+
+            # init_w = tf.random_normal_initializer(0., 0.3)
+            # init_b = tf.constant_initializer(0.1)
+            # upsample1 = tf.image.resize_nearest_neighbor(maxpool3, (56, 56))
+            # deconv1 = tf.layers.conv2d_transpose(upsample1, 32, (3,3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='deconv1', trainable=trainable)
+            # upsample2 = tf.image.resize_nearest_neighbor(deconv1, (112, 112))
+            # deconv2 = tf.layers.conv2d_transpose(upsample2, 64, (3,3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='deconv2', trainable=trainable)
+            # upsample3 = tf.image.resize_nearest_neighbor(deconv2, (224, 224))
+            # deconv3 = tf.layers.conv2d_transpose(upsample3, 64, (3,3), padding='same', activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='deconv3', trainable=trainable)
+
+            # with tf.variable_scope('a'):
+            #     actions = tf.layers.conv2d(deconv3, 3, (3,3), padding='same', kernel_initializer=init_w, bias_initializer=init_b, name='a', trainable=trainable)
 
         return actions
 
@@ -126,16 +202,16 @@ class Actor(object):
             self.t_replace_counter += 1
 
     def choose_action(self, s):
-        s = s[np.newaxis, :]  # single state
-        action = self.sess.run(self.a, feed_dict={S: s})[0] # single action
+        # s = s[np.newaxis, :]  # single state
+        actions = self.sess.run(self.a, feed_dict={S: s}) # single action
         # scale action to [-1, 1]
-        for i in range(action.shape[2]):
-            cur_channel = action[:, :, i]
-            min_val = np.min(cur_channel)
-            max_val = np.max(cur_channel)
-            action[:, :, i] = (cur_channel - min_val + self.epsilon) / max((max_val - min_val), 2 * self.epsilon)
-        action = action * 2 -1
-        return action
+        # for i in range(action.shape[2]):
+        #     cur_channel = action[:, :, i]
+        #     min_val = np.min(cur_channel)
+        #     max_val = np.max(cur_channel)
+        #     action[:, :, i] = (cur_channel - min_val + self.epsilon) / max((max_val - min_val), 2 * self.epsilon)
+        # action = action * 2 -1
+        return actions
 
     def add_grad_to_graph(self, a_grads):
         with tf.variable_scope('policy_grads'):
@@ -205,11 +281,12 @@ class Critic(object):
                     flatten = tf.layers.flatten(maxpool3)
                 return flatten
             
-            s = conv_desc('state_conv', s)
+            # s = conv_desc('state_conv', s)
+            s = tf.layers.flatten(s)
             a = conv_desc('action_conv', a)
             with tf.variable_scope('fcl1'):
                 n_fcl1 = 1024
-                w1_s = tf.get_variable('w1_s', [28*28*16, n_fcl1], initializer=init_w, trainable=trainable)
+                w1_s = tf.get_variable('w1_s', [7*7*1024, n_fcl1], initializer=init_w, trainable=trainable)
                 w1_a = tf.get_variable('w1_a', [28*28*16, n_fcl1], initializer=init_w, trainable=trainable)
                 b1 = tf.get_variable('b1', [1, n_fcl1], initializer=init_b, trainable=trainable)
                 net = tf.nn.relu(tf.matmul(s, w1_s) + tf.matmul(a, w1_a) + b1)
@@ -233,8 +310,8 @@ class Memory(object):
         self.capacity = capacity
         self.data = deque()
 
-    def store_transition(self, s, a, r):
-        self.data.append((s, a, r))
+    def store_transition(self, s, a, r, s_):
+        self.data.append((s, a, r, s_))
         if len(self.data) > self.capacity:
             self.data.popleft()
 
@@ -255,7 +332,7 @@ def load_images(input_dir):
         filename = os.path.basename(filepath)
         yield filename, image
 
-#####################  Compute Reward  ####################
+#####################  Classification Model  ####################
 class Classifier(object):
     def __init__(self, input_shape, nb_classes):
         # self.graph = tf.Graph()
@@ -272,6 +349,8 @@ class Classifier(object):
             with tf.contrib.slim.arg_scope(inception.inception_v1_arg_scope()):
                 _, end_points = inception.inception_v1(self.x_input, num_classes=self.nb_classes, is_training=False)
                 self.pre_labels = tf.argmax(end_points['Predictions'], 1)
+                self.features = end_points['Mixed_5c']
+
             # Restore Model
             saver = tf.train.Saver(tf.contrib.slim.get_model_variables())
             session_creator = tf.train.ChiefSessionCreator(
@@ -280,18 +359,10 @@ class Classifier(object):
             
             self.sess = tf.train.MonitoredSession(session_creator=session_creator)
 
-    def get_reward(self, s, a, label):
-        pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: a[tf.newaxis, :]})
-        
-        # import matplotlib.pyplot as plt
-        # f = plt.figure()
-        # f.add_subplot(1, 2, 1)
-        # plt.imshow((s + 1.0) / 2.0)
-        # f.add_subplot(1, 2, 2)
-        # plt.imshow((a + 1.0) / 2.0)
-        # plt.show(block=True)
+    def get_reward(self, s, a, labels):
+        pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: a})
 
-        if pre_labels[0] == label:
+        if pre_labels[0] == labels[0]:
             r = -1
         else:
             l2_dist = np.linalg.norm((a - s + 1.0) * 255.0 / 2.0)
@@ -300,11 +371,16 @@ class Classifier(object):
             else:
                 r = -np.power(2.0, l2_dist / 128.0) + 2.0
         return r
+    
+    def extract_feature(self, images):
+        return self.sess.run(self.features, feed_dict={self.x_input: images})
 
 #####################  Main  ####################
 if __name__ == "__main__":
-    state_dim = [FLAGS.image_height, FLAGS.image_width, 3]
-    action_dim = [FLAGS.image_height, FLAGS.image_width, 3]
+    # state_dim = [FLAGS.image_height, FLAGS.image_width, 3]
+    # action_dim = [FLAGS.image_height, FLAGS.image_width, 3]
+    state_dim = [7, 7, 1024]
+    action_dim = [7, 7, 1024]
     batch_shape = [FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 3]
     # action_bound = None
 
@@ -332,7 +408,7 @@ if __name__ == "__main__":
             ac_saver.restore(sess, tf.train.latest_checkpoint(FLAGS.ddpg_checkpoint_path))
 
     # initialization classifier
-    classifier = Classifier([None] + action_dim, FLAGS.num_classes)
+    classifier = Classifier([None, 224, 224, 3], FLAGS.num_classes)
     
     M = Memory(MEMORY_CAPACITY)
 
@@ -346,22 +422,35 @@ if __name__ == "__main__":
         ep_reward = 0.0
         data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
         for step in range(FLAGS.max_steps):
-            (images, labels, _) = next(data_generator)
+            (images, labels, filepaths) = next(data_generator)
+            # use feature as state
+            features = classifier.extract_feature(images)
+            actions = actor.choose_action(features)
+            
             # Add exploration noise
-            a = actor.choose_action(images[0])
             # a = np.clip(np.random.normal(a, var), -1, 1)    # add randomness to action selection for exploration
             # s_, r, done, info = env.step(a)
-            r = classifier.get_reward(images[0], a, labels[0])
+            r = classifier.get_reward(images, actions, labels)
 
-            M.store_transition(images[0], a, r / 10)
+            if r >= 0.0:
+                import matplotlib.pyplot as plt
+                f = plt.figure()
+                f.add_subplot(1, 2, 1)
+                plt.imshow((images[0] + 1.0) / 2.0)
+                f.add_subplot(1, 2, 2)
+                plt.imshow((actions[0] + 1.0) / 2.0)
+                # plt.show(block=True)
+                plt.savefig(FLAGS.output_dir+filepaths[0].split('/')[-1].split('.')[0]+'.png')
 
-            if episode > 0 or step > MEMORY_CAPACITY:
+            M.store_transition(features[0], actions[0], r, classifier.extract_feature(actions)[0])
+
+            if episode > 0 or step > MEMORY_CAPACITY/10:
                 # var *= .9995    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
                 b_a = [row[1] for row in minibatch]
                 b_r = [row[2] for row in minibatch]
-                b_s_ = b_a
+                b_s_ = [row[3] for row in minibatch]
 
                 critic.learn(b_s, b_a, b_r, b_s_)
                 actor.learn(b_s)
