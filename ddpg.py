@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 from scipy.misc import imread
 from scipy.misc import imresize
+import matplotlib.pyplot as plt
 from collections import deque
 import random
 from tensorflow.contrib.slim.nets import inception
@@ -433,7 +434,6 @@ if __name__ == "__main__":
             r = classifier.get_reward(images, actions, labels)
 
             if r >= 0.0:
-                import matplotlib.pyplot as plt
                 f = plt.figure()
                 f.add_subplot(1, 2, 1)
                 plt.imshow((images[0] + 1.0) / 2.0)
