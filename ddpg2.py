@@ -399,7 +399,7 @@ if __name__ == "__main__":
         (images, labels, filepaths) = next(data_generator)
         features = classifier.extract_feature(images)
         while not done:
-            a = actor.choose_action(features)
+            actions = actor.choose_action(features)
 
             r = classifier.get_reward(images, actions, labels)
             if r > 0.0:
