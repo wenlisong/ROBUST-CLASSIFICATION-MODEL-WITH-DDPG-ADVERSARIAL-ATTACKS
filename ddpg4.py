@@ -30,11 +30,11 @@ OUTPUT_GRAPH = True
 tf.flags.DEFINE_string(
     'checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
 tf.flags.DEFINE_string(
-    'ddpg_checkpoint_path', './models/ddpg3/', 'Path to checkpoint for ddpg network.')
+    'ddpg_checkpoint_path', './models/ddpg4/', 'Path to checkpoint for ddpg network.')
 tf.flags.DEFINE_string(
     'input_dir', './datasets/train_labels.txt', 'Input directory with images.')
 tf.flags.DEFINE_string(
-    'output_dir', './output-example3/', 'Output directory to save adversarial image.')
+    'output_dir', './output-example4/', 'Output directory to save adversarial image.')
 tf.flags.DEFINE_string(
     'output_file', './output-defense.txt', 'Output file to save labels.')
 tf.flags.DEFINE_integer(
@@ -339,16 +339,17 @@ class Classifier(object):
         noise_images = np.clip(images + a, -1, 1)
         pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
 
-        max_norm = 2000.0
+        max_norm = 5000.0
         if pre_labels[0] == label:
             r = -1
         else:
             l2_dist = np.linalg.norm((a + 1.0) * 255.0 / 2.0)
+            print("Distance: " + l2_dist)
             if l2_dist > max_norm:
                 r = -1
             else:
                 r = -np.power(2.0, l2_dist / max_norm) + 2.0
-        return r
+        return r 
     
     def extract_feature(self, images):
         return self.sess.run(self.features, feed_dict={self.x_input: images})
@@ -391,10 +392,10 @@ if __name__ == "__main__":
     for episode in range(FLAGS.max_ep_steps):
         ep_reward = 0.0
         step = 0
-        done = False
+        # done = False
         (images, labels, filepaths) = next(data_generator)
         features = classifier.extract_feature(images)
-        while not done:
+        while ep_reward < 1.0:
             actions = actor.choose_action(features)
 
             r = classifier.get_reward(images, actions, labels)
@@ -406,7 +407,7 @@ if __name__ == "__main__":
                 plt.imshow(np.clip((images[0] + actions[0] + 1) / 2.0, 0, 1))
                 # plt.show(block=True)
                 plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
-                done = True
+                # done = True
 
             M.store_transition(features[0], actions[0], r, classifier.extract_feature(actions)[0])
 
