@@ -337,11 +337,11 @@ class Classifier(object):
 
     def get_reward(self, images, a, label):
         l2_dist = np.linalg.norm((a + 1.0) * 255.0 / 2.0)
-        max_norm = 70000.0
+        max_norm = 5000.0
         is_equal = False
 
         if random.uniform(0, 1) < 0.5:
-            r = -np.power(2.0, l2_dist / max_norm) + 2.0
+            r = -np.power(2.0, l2_dist / 70000) + 2.0
         else:
             noise_images = np.clip(images + a, -1, 1)
             pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
