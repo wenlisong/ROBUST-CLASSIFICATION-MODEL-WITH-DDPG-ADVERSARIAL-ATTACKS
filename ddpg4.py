@@ -428,7 +428,7 @@ if __name__ == "__main__":
                 critic.learn(b_s, b_a, b_r, b_s_)
                 actor.learn(b_s)
 
-            ep_reward += r
+                ep_reward += r
 
             if step % 10 == 0:
                 avg_time_per_step = (time.time() - start)/10
