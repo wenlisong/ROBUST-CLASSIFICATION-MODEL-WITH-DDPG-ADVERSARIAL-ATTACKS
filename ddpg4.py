@@ -404,7 +404,7 @@ if __name__ == "__main__":
             actions = actor.choose_action(features)
             actions = np.clip(np.random.normal(actions, var), -1, 1)    # add randomness to action selection for exploration
             r, l2_dist, is_equal = classifier.get_reward(images, actions, labels)
-            if r > 0.0:
+            if step > MEMORY_CAPACITY/5 and r > 0.0:
                 f = plt.figure()
                 f.add_subplot(1, 2, 1)
                 plt.imshow((images[0] + 1.0) / 2.0)
@@ -412,7 +412,7 @@ if __name__ == "__main__":
                 plt.imshow(np.clip((images[0] + actions[0] + 1) / 2.0, 0, 1))
                 # plt.show(block=True)
                 plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
-                plt.cla()
+                plt.clf()
                 # done = True
 
             M.store_transition(features[0], actions[0], r, classifier.extract_feature(actions)[0])
