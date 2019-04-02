@@ -340,16 +340,15 @@ class Classifier(object):
         pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
 
         max_norm = 5000.0
+        l2_dist = np.linalg.norm((a + 1.0) * 255.0 / 2.0)
         if pre_labels[0] == label:
             r = -1
         else:
-            l2_dist = np.linalg.norm((a + 1.0) * 255.0 / 2.0)
-            print("Distance: %.6f" % l2_dist)
             if l2_dist > max_norm:
                 r = -1
             else:
                 r = -np.power(2.0, l2_dist / max_norm) + 2.0
-        return r 
+        return r, l2_dist
     
     def extract_feature(self, images):
         return self.sess.run(self.features, feed_dict={self.x_input: images})
@@ -398,7 +397,7 @@ if __name__ == "__main__":
         while ep_reward < 1.0:
             actions = actor.choose_action(features)
 
-            r = classifier.get_reward(images, actions, labels)
+            r, l2_dist = classifier.get_reward(images, actions, labels)
             if r > 0.0:
                 f = plt.figure()
                 f.add_subplot(1, 2, 1)
@@ -427,9 +426,9 @@ if __name__ == "__main__":
                 avg_time_per_step = (time.time() - start)/10
                 avg_examples_per_second = (10 * FLAGS.batch_size) /(time.time() - start)
                 start = time.time()
-                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, {:.2f} examples/second, cur_reward: {:.3f}, ep_reward: {:.3f}, Explore: {:.3f}'.format(
+                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, {:.2f} examples/second, cur_reward: {:.3f}, ep_reward: {:.3f}, distance: {:.3f}'.format(
                     episode, step, avg_time_per_step,
-                    avg_examples_per_second, r, ep_reward, 0))
+                    avg_examples_per_second, r, ep_reward, l2_dist))
             
             step += 1
         ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
