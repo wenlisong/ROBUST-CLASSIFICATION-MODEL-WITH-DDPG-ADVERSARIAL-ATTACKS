@@ -343,7 +343,7 @@ class Classifier(object):
         l2_dist = np.linalg.norm((a + 1.0) * 255.0 / 2.0)
         is_equal = False
         if pre_labels[0] == label:
-            r = -1
+            r = 0.01
             is_equal = True
         else:
             if l2_dist > max_norm:
