@@ -408,11 +408,12 @@ if __name__ == "__main__":
                 plt.imshow(np.clip((images[0] + actions[0] + 1) / 2.0, 0, 1))
                 # plt.show(block=True)
                 plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
+                plt.cla()
                 # done = True
 
             M.store_transition(features[0], actions[0], r, classifier.extract_feature(actions)[0])
 
-            if episode > 0 or step > MEMORY_CAPACITY / 20:
+            if episode > 0 or step % 100 == 0:
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
                 b_a = [row[1] for row in minibatch]
