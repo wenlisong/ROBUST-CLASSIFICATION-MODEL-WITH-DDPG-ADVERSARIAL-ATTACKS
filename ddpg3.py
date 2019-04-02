@@ -335,12 +335,12 @@ class Classifier(object):
             
             self.sess = tf.train.MonitoredSession(session_creator=session_creator)
 
-    def get_reward(self, images, a, label):
-        noise_images = np.clip(images + a, -1, 1)
+    def get_reward(self, images, a, labels):
+        noise_images = np.clip(images + a / 255.0, -1, 1)
         pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
 
-        max_norm = 5000.0
-        if pre_labels[0] == label:
+        max_norm = 1000
+        if pre_labels[0] == labels[0]:
             r = -1
         else:
             l2_dist = np.linalg.norm((a + 1.0) * 255.0 / 2.0)
@@ -403,7 +403,7 @@ if __name__ == "__main__":
                 f.add_subplot(1, 2, 1)
                 plt.imshow((images[0] + 1.0) / 2.0)
                 f.add_subplot(1, 2, 2)
-                plt.imshow(np.clip((images[0] + actions[0] + 1) / 2.0, 0, 1))
+                plt.imshow(np.clip((images[0] + actions[0] / 255.0 + 1) / 2.0, 0, 1))
                 # plt.show(block=True)
                 plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
                 plt.cla()

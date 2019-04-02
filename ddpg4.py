@@ -335,7 +335,7 @@ class Classifier(object):
             
             self.sess = tf.train.MonitoredSession(session_creator=session_creator)
 
-    def get_reward(self, images, a, label):
+    def get_reward(self, images, a, labels):
         l2_dist = np.linalg.norm((a + 1.0) * 255.0 / 2.0)
         max_norm = 5000.0
         is_equal = False
@@ -346,7 +346,7 @@ class Classifier(object):
             noise_images = np.clip(images + a, -1, 1)
             pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
  
-            if pre_labels[0] == label:
+            if pre_labels[0] == labels[0]:
                 r = -0.1
                 is_equal = True
             else:
