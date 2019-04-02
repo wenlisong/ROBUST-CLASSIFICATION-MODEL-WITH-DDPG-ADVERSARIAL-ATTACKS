@@ -344,7 +344,7 @@ class Classifier(object):
             r = -1
         else:
             l2_dist = np.linalg.norm((a + 1.0) * 255.0 / 2.0)
-            print("Distance: " + l2_dist)
+            print("Distance: %.6f" % l2_dist)
             if l2_dist > max_norm:
                 r = -1
             else:
