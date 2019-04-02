@@ -298,9 +298,6 @@ class Memory(object):
             self.data.popleft()
 
     def sample(self, n):
-        # assert len(self.data)>= self.capacity, 'Memory has not been fulfilled'
-        # indices = np.random.choice(self.capacity, size=n)
-        # return self.data[indices, :]
         return random.sample(self.data, n)
 
 #####################  Load Image  ####################
@@ -341,13 +338,13 @@ class Classifier(object):
             
             self.sess = tf.train.MonitoredSession(session_creator=session_creator)
 
-    def get_reward(self, s, a, labels):
+    def get_reward(self, images, a, labels):
         pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: a})
 
         if pre_labels[0] == labels[0]:
             r = -1
         else:
-            l2_dist = np.linalg.norm((a - s + 1.0) * 255.0 / 2.0)
+            l2_dist = np.linalg.norm((a - images + 1.0) * 255.0 / 2.0)
             if l2_dist >= 128:
                 r = -1
             else:
