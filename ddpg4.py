@@ -336,20 +336,24 @@ class Classifier(object):
             self.sess = tf.train.MonitoredSession(session_creator=session_creator)
 
     def get_reward(self, images, a, label):
-        noise_images = np.clip(images + a, -1, 1)
-        pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
-
-        max_norm = 5000.0
         l2_dist = np.linalg.norm((a + 1.0) * 255.0 / 2.0)
+        max_norm = 70000.0
         is_equal = False
-        if pre_labels[0] == label:
-            r = -0.1
-            is_equal = True
-        else:
-            # if l2_dist > max_norm:
-            #     r = -1
-            # else:
+
+        if random.uniform(0, 1) < 0.5:
             r = -np.power(2.0, l2_dist / max_norm) + 2.0
+        else:
+            noise_images = np.clip(images + a, -1, 1)
+            pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
+ 
+            if pre_labels[0] == label:
+                r = -0.1
+                is_equal = True
+            else:
+                if l2_dist > max_norm:
+                    r = -1
+                else:
+                    r = -np.power(2.0, l2_dist / max_norm) + 2.0
         return r, l2_dist, is_equal
     
     def extract_feature(self, images):
