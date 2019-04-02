@@ -340,7 +340,7 @@ class Classifier(object):
         max_norm = 5000.0
         is_equal = False
 
-        if random.uniform(0, 1) < 0.5:
+        if random.uniform(0, 1) < 0.7:
             r = -np.power(2.0, l2_dist / 70000) + 2.0
         else:
             noise_images = np.clip(images + a, -1, 1)
@@ -417,7 +417,7 @@ if __name__ == "__main__":
 
             M.store_transition(features[0], actions[0], r, classifier.extract_feature(actions)[0])
 
-            if episode > 0 or step > MEMORY_CAPACITY/5:
+            if episode > 0 or step > MEMORY_CAPACITY/10:
                 var *= .9995    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
