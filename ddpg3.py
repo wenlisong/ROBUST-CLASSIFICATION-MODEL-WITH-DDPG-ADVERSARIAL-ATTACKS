@@ -385,7 +385,7 @@ if __name__ == "__main__":
     classifier = Classifier([None, 224, 224, 3], FLAGS.num_classes)
     
     M = Memory(MEMORY_CAPACITY)
-
+    var = 3.0  # control exploration
     start = time.time()
     data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
     for episode in range(FLAGS.max_ep_steps):
@@ -396,7 +396,7 @@ if __name__ == "__main__":
         features = classifier.extract_feature(images)
         while not done:
             actions = actor.choose_action(features)
-
+            actions = np.clip(np.random.normal(actions, var), -1, 1)    # add randomness to action selection for exploration
             r = classifier.get_reward(images, actions, labels)
             if r > 0.0:
                 f = plt.figure()
@@ -411,7 +411,8 @@ if __name__ == "__main__":
 
             M.store_transition(features[0], actions[0], r, classifier.extract_feature(actions)[0])
 
-            if episode > 0 or step > MEMORY_CAPACITY / 20:
+            if episode > 0 or step > MEMORY_CAPACITY / 2:
+                var *= .9995    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
                 b_a = [row[1] for row in minibatch]
