@@ -346,10 +346,10 @@ class Classifier(object):
             r = -0.1
             is_equal = True
         else:
-            if l2_dist > max_norm:
-                r = -1
-            else:
-                r = -np.power(2.0, l2_dist / max_norm) + 2.0
+            # if l2_dist > max_norm:
+            #     r = -1
+            # else:
+            r = -np.power(2.0, l2_dist / max_norm) + 2.0
         return r, l2_dist, is_equal
     
     def extract_feature(self, images):
@@ -430,9 +430,9 @@ if __name__ == "__main__":
                 avg_time_per_step = (time.time() - start)/10
                 avg_examples_per_second = (10 * FLAGS.batch_size) /(time.time() - start)
                 start = time.time()
-                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, {:.2f} examples/second, cur_reward: {:.3f}, ep_reward: {:.3f}, distance: {:.3f}, equal: {}'.format(
+                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, {:.2f} examples/second, cur_reward: {:.3f}, ep_reward: {:.3f}, distance: {:.3f}, equal: {}, exploration: {:.3f}'.format(
                     episode, step, avg_time_per_step,
-                    avg_examples_per_second, r, ep_reward, l2_dist, is_equal))
+                    avg_examples_per_second, r, ep_reward, l2_dist, is_equal, var))
             
             step += 1
         ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
