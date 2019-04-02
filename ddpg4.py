@@ -417,7 +417,7 @@ if __name__ == "__main__":
 
             M.store_transition(features[0], actions[0], r, classifier.extract_feature(actions)[0])
 
-            if episode > 0 or step > MEMORY_CAPACITY/10:
+            if episode > 0 or step > MEMORY_CAPACITY/5:
                 var *= .9995    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
