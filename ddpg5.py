@@ -387,7 +387,7 @@ if __name__ == "__main__":
     classifier = Classifier([None, 224, 224, 3], FLAGS.num_classes)
     
     M = Memory(MEMORY_CAPACITY)
-    var = 3.0  # control exploration
+    var = 1.0  # control exploration
     start = time.time()
     data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
     for episode in range(FLAGS.max_ep_steps):
@@ -422,8 +422,8 @@ if __name__ == "__main__":
                 print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, equal: {}, exploration: {:.3f}'.format(
                     episode, step, r, l2_dist, is_equal, var))
 
-            if episode > 0 or step > MEMORY_CAPACITY:
-                var *= .9995    # decay the action randomness
+            if step > MEMORY_CAPACITY / 2:
+                var *= .9997    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
                 b_a = [row[1] for row in minibatch]
