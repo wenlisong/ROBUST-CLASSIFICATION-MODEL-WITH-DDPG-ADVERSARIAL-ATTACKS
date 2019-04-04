@@ -342,12 +342,12 @@ class Classifier(object):
 
         pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
 
-        if pre_labels[0] == labels[0]:
-            r = 0.0
-            is_equal = True
-        else:
-            if l2_dist > max_norm:
+        if l2_dist > max_norm:
                 r = -1.0
+        else:
+            if pre_labels[0] == labels[0]:
+                r = 0.0
+                is_equal = True
             else:
                 r = 1.0
         return r, l2_dist, is_equal
