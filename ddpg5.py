@@ -11,8 +11,8 @@ import time
 from mytools import load_path_label
 
 
-np.random.seed(1)
-tf.set_random_seed(1)
+# np.random.seed(1)
+# tf.set_random_seed(1)
 
 #####################  hyper parameters  ####################
 
@@ -25,7 +25,7 @@ REPLACEMENT = [
 ][0]            # you can try different target replacement strategies
 MEMORY_CAPACITY = 20000
 
-OUTPUT_GRAPH = True
+# OUTPUT_GRAPH = True
 
 tf.flags.DEFINE_string(
     'checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
