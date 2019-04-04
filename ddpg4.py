@@ -340,20 +340,18 @@ class Classifier(object):
         max_norm = 5000.0
         is_equal = False
 
-        if random.uniform(0, 1) < 0.7:
-            r = -np.power(2.0, l2_dist / 70000) + 2.0
+        noise_images = np.clip(images + a, -1, 1)
+        pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
+
+        if pre_labels[0] == labels[0]:
+            r = 0.0
+            is_equal = True
         else:
-            noise_images = np.clip(images + a, -1, 1)
-            pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
- 
-            if pre_labels[0] == labels[0]:
-                r = -0.1
-                is_equal = True
+            if l2_dist > max_norm:
+                r = -1
             else:
-                if l2_dist > max_norm:
-                    r = -1
-                else:
-                    r = -np.power(2.0, l2_dist / max_norm) + 2.0
+                # r = -np.power(2.0, l2_dist / max_norm) + 2.0
+                r = -l2_dist + max_norm
         return r, l2_dist, is_equal
     
     def extract_feature(self, images):
@@ -391,7 +389,7 @@ if __name__ == "__main__":
     classifier = Classifier([None, 224, 224, 3], FLAGS.num_classes)
     
     M = Memory(MEMORY_CAPACITY)
-    var = 3.0  # control exploration
+    var = 20.0  # control exploration
     start = time.time()
     data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
     for episode in range(FLAGS.max_ep_steps):
@@ -404,7 +402,7 @@ if __name__ == "__main__":
             actions = actor.choose_action(features)
             actions = np.clip(np.random.normal(actions, var), -1, 1)    # add randomness to action selection for exploration
             r, l2_dist, is_equal = classifier.get_reward(images, actions, labels)
-            if step > MEMORY_CAPACITY/5 and r > 0.5:
+            if step > MEMORY_CAPACITY and r > 0.5:
                 f = plt.figure()
                 f.add_subplot(1, 2, 1)
                 plt.imshow((images[0] + 1.0) / 2.0)
@@ -417,7 +415,7 @@ if __name__ == "__main__":
 
             M.store_transition(features[0], actions[0], r, classifier.extract_feature(actions)[0])
 
-            if episode > 0 or step > MEMORY_CAPACITY/10:
+            if episode > 0 or step > MEMORY_CAPACITY:
                 var *= .9995    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
