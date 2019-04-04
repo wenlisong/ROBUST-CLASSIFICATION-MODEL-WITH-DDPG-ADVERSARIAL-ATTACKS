@@ -336,7 +336,7 @@ class Classifier(object):
             self.sess = tf.train.MonitoredSession(session_creator=session_creator)
 
     def get_reward(self, images, noise_images, labels):
-        l2_dist = np.linalg.norm((images - noise_images) * 255.0 / 2.0)
+        l2_dist = np.linalg.norm(images - noise_images) * 255.0 / 2.0
         max_norm = 500.0
         is_equal = False
 
