@@ -337,7 +337,7 @@ class Classifier(object):
 
     def get_reward(self, images, noise_images, labels):
         l2_dist = np.linalg.norm(images - noise_images) * 255.0 / 2.0
-        max_norm = 500.0
+        max_norm = 1000.0
         is_equal = False
 
         pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
@@ -387,7 +387,7 @@ if __name__ == "__main__":
     classifier = Classifier([None, 224, 224, 3], FLAGS.num_classes)
     
     M = Memory(MEMORY_CAPACITY)
-    var = 1.0  # control exploration
+    var = 0.1  # control exploration
     start = time.time()
     data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
     for episode in range(FLAGS.max_ep_steps):
@@ -423,7 +423,7 @@ if __name__ == "__main__":
                     episode, step, r, l2_dist, is_equal, var))
 
             if step > MEMORY_CAPACITY / 2:
-                var *= .9997    # decay the action randomness
+                # var *= .9997    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
                 b_a = [row[1] for row in minibatch]
