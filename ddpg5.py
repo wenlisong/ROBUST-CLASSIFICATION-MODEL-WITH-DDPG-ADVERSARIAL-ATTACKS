@@ -346,10 +346,11 @@ class Classifier(object):
                 r = -1.0
         else:
             if pre_labels[0] == labels[0]:
-                r = 0.0
+                r = 0.1
                 is_equal = True
             else:
                 r = 1.0
+                print('true label: {}, predict label: {}'.format(labels[0]), pre_labels[0])
         return r, l2_dist, is_equal
     
     def extract_feature(self, images):
@@ -399,14 +400,14 @@ if __name__ == "__main__":
         features = classifier.extract_feature(noise_images)
         while not done:
             actions = actor.choose_action(features)
-            actions = np.clip(np.random.normal(actions, var), -1, 1)/1000  # add randomness to action selection for exploration
+            actions = np.clip(np.random.normal(actions, var), -1, 1)/10000  # add randomness to action selection for exploration
             noise_images = np.clip(noise_images + actions, -1, 1)
             r, l2_dist, is_equal = classifier.get_reward(images, noise_images, labels)
             features_ = classifier.extract_feature(noise_images)
             M.store_transition(features[0], actions[0], r, features_[0])
 
             features = features_
-            if r > 0.0:
+            if r > 0.1:
                 f = plt.figure()
                 f.add_subplot(1, 2, 1)
                 plt.imshow((images[0] + 1.0) / 2.0)
