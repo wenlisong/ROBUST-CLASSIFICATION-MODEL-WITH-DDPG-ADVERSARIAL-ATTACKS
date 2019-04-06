@@ -337,7 +337,7 @@ class Classifier(object):
 
     def get_reward(self, images, noise_images, labels):
         l2_dist = np.linalg.norm(images - noise_images) * 255.0 / 2.0
-        max_norm = 1000.0
+        max_norm = 3000.0
         is_equal = False
 
         pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
@@ -346,7 +346,7 @@ class Classifier(object):
                 r = -1.0
         else:
             if pre_labels[0] == labels[0]:
-                r = 0.1
+                r = 0.01
                 is_equal = True
             else:
                 r = 1.0
@@ -388,7 +388,7 @@ if __name__ == "__main__":
     classifier = Classifier([None, 224, 224, 3], FLAGS.num_classes)
     
     M = Memory(MEMORY_CAPACITY)
-    var = 0.1  # control exploration
+    var = 0.0  # control exploration
     start = time.time()
     data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
     for episode in range(FLAGS.max_ep_steps):
@@ -400,7 +400,7 @@ if __name__ == "__main__":
         features = classifier.extract_feature(noise_images)
         while not done:
             actions = actor.choose_action(features)
-            actions = np.clip(np.random.normal(actions, var), -1, 1)/10000  # add randomness to action selection for exploration
+            actions = np.clip(np.random.normal(actions, var), -1, 1)/1000  # add randomness to action selection for exploration
             noise_images = np.clip(noise_images + actions, -1, 1)
             r, l2_dist, is_equal = classifier.get_reward(images, noise_images, labels)
             features_ = classifier.extract_feature(noise_images)
