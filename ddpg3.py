@@ -371,14 +371,16 @@ if __name__ == "__main__":
 
             features_, _ = classifier.extract_feature(noise_images)
             if l2_dist > FLAGS.MAX_L2:
-                features, _ = classifier.extract_feature(images)
-                noise_images = images
                 r = -1.0
-
             M.store_transition(features[0], actions[0], r/10, features_[0])
             features = features_
 
-            if l2_dist <= FLAGS.MAX_L2 and pre_labels[0] != labels[0]:
+            if l2_dist > FLAGS.MAX_L2:
+                features, _ = classifier.extract_feature(images)
+                noise_images = images
+                continue
+
+            if pre_labels[0] != labels[0]:
                 f = plt.figure()
                 f.add_subplot(1, 2, 1)
                 plt.title('Ture label {}'.format(labels[0]))
