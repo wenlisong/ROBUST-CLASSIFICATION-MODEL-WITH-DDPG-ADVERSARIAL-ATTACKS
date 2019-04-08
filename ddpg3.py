@@ -187,7 +187,7 @@ class Actor(object):
             self.policy_grads = tf.gradients(ys=self.a, xs=self.e_params, grad_ys=a_grads)
 
         with tf.variable_scope('A_train'):
-            opt = tf.train.AdamOptimizer(self.lr)  # (- learning rate) for ascent policy
+            opt = tf.train.AdamOptimizer(-self.lr)  # (- learning rate) for ascent policy
             self.train_op = opt.apply_gradients(zip(self.policy_grads, self.e_params))
 
 ###############################  Critic  ####################################
@@ -370,25 +370,26 @@ if __name__ == "__main__":
             r, l2_dist, pre_labels = classifier.get_reward(images, noise_images, labels)
 
             features_, _ = classifier.extract_feature(noise_images)
+            if l2_dist > FLAGS.MAX_L2:
+                features, _ = classifier.extract_feature(images)
+                noise_images = images
+                r = -1.0
+
             M.store_transition(features[0], actions[0], r/10, features_[0])
             features = features_
 
-            if pre_labels[0] != labels[0]:
-                if l2_dist > FLAGS.MAX_L2:
-                    features, _ = classifier.extract_feature(images)
-                    noise_images = images
-                else:
-                    f = plt.figure()
-                    f.add_subplot(1, 2, 1)
-                    plt.title('Ture label {}'.format(labels[0]))
-                    plt.imshow((images[0] + 1.0) / 2.0)
-                    f.add_subplot(1, 2, 2)
-                    plt.title('Predction label {}'.format(pre_labels[0]))
-                    plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
-                    # plt.show(block=True)
-                    plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
-                    plt.clf()
-                    done = True
+            if l2_dist <= FLAGS.MAX_L2 and pre_labels[0] != labels[0]:
+                f = plt.figure()
+                f.add_subplot(1, 2, 1)
+                plt.title('Ture label {}'.format(labels[0]))
+                plt.imshow((images[0] + 1.0) / 2.0)
+                f.add_subplot(1, 2, 2)
+                plt.title('Predction label {}'.format(pre_labels[0]))
+                plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
+                # plt.show(block=True)
+                plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
+                plt.clf()
+                done = True
                 print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
 
             if step > FLAGS.MEMORY_CAPACITY/100:
