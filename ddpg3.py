@@ -16,41 +16,27 @@ tf.set_random_seed(1)
 
 #####################  hyper parameters  ####################
 
-LR_A = 0.001    # learning rate for actor
-LR_C = 0.001    # learning rate for critic
-GAMMA = 0.9     # reward discount
-REPLACEMENT = [
+tf.flags.DEFINE_float('LR_A', 0.001, 'learning rate for actor')
+tf.flags.DEFINE_float('LR_C', 0.001, 'learning rate for critic')
+tf.flags.DEFINE_float('GAMMA', 0.9, 'reward discount')
+tf.flags.DEFINE_integer('MEMORY_CAPACITY', 20000, '')
+tf.flags.DEFINE_list('REPLACEMENT', [
     dict(name='soft', tau=0.01),
     dict(name='hard', rep_iter_a=600, rep_iter_c=500)
-][0]            # you can try different target replacement strategies
-MEMORY_CAPACITY = 20000
-
-OUTPUT_GRAPH = True
-
-tf.flags.DEFINE_string(
-    'checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
-tf.flags.DEFINE_string(
-    'ddpg_checkpoint_path', './models/ddpg3/', 'Path to checkpoint for ddpg network.')
-tf.flags.DEFINE_string(
-    'input_dir', './datasets/train_labels.txt', 'Input directory with images.')
-tf.flags.DEFINE_string(
-    'output_dir', './output-example3/', 'Output directory to save adversarial image.')
-tf.flags.DEFINE_string(
-    'output_file', './output-defense.txt', 'Output file to save labels.')
-tf.flags.DEFINE_integer(
-    'image_width', 224, 'Width of each input images.')
-tf.flags.DEFINE_integer(
-    'image_height', 224, 'Height of each input images.')
-tf.flags.DEFINE_integer(
-    'batch_size', 32, 'Batch size to processing images')
-tf.flags.DEFINE_integer(
-    'nb_pixel', 224*224*3, 'The number of pixelx in a image')
-tf.flags.DEFINE_integer(
-    'num_classes', 110, 'How many classes of the data set')
-tf.app.flags.DEFINE_integer(
-    'max_ep_steps', 10000, 'The number of epoch times')
-tf.app.flags.DEFINE_integer(
-    'max_steps', 100000, 'The number of training times')
+    ], 'you can try different target replacement strategies')
+tf.flags.DEFINE_float('EPSILON', 1.0/255.0, 'action bound')
+tf.flags.DEFINE_string('checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
+tf.flags.DEFINE_string('ddpg_checkpoint_path', './models/ddpg3/', 'Path to checkpoint for ddpg network.')
+tf.flags.DEFINE_string('input_dir', './datasets/train_labels.txt', 'Input directory with images.')
+tf.flags.DEFINE_string('output_dir', './output-example3/', 'Output directory to save adversarial image.')
+tf.flags.DEFINE_string('output_file', './output-defense.txt', 'Output file to save labels.')
+tf.flags.DEFINE_integer('image_width', 224, 'Width of each input images.')
+tf.flags.DEFINE_integer('image_height', 224, 'Height of each input images.')
+tf.flags.DEFINE_integer('batch_size', 32, 'Batch size to processing images')
+tf.flags.DEFINE_integer('nb_pixel', 224*224*3, 'The number of pixelx in a image')
+tf.flags.DEFINE_integer('num_classes', 110, 'How many classes of the data set')
+tf.app.flags.DEFINE_integer('max_ep_steps', 10000, 'The number of epoch times')
+tf.app.flags.DEFINE_integer('max_steps', 100000, 'The number of training times')
 FLAGS = tf.flags.FLAGS
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -63,7 +49,6 @@ class Actor(object):
     def __init__(self, sess, action_dim, learning_rate, replacement):
         self.sess = sess
         self.a_dim = action_dim
-        # self.action_bound = action_bound
         self.lr = learning_rate
         self.replacement = replacement
         self.t_replace_counter = 0
@@ -190,8 +175,7 @@ class Actor(object):
             self.t_replace_counter += 1
 
     def choose_action(self, s):
-        actions = self.sess.run(self.a, feed_dict={S: s})
-        return actions
+        return self.sess.run(self.a, feed_dict={S: s})
 
     def add_grad_to_graph(self, a_grads):
         with tf.variable_scope('policy_grads'):
@@ -297,18 +281,7 @@ class Memory(object):
     def sample(self, n):
         return random.sample(self.data, n)
 
-#####################  Load Image  ####################
-def load_images(input_dir):
-    for filepath in tf.gfile.Glob(os.path.join(input_dir, '*.jpg')):
-        with open(filepath, 'rb') as f:
-            raw_image = imread(f, mode='RGB')
-            image = imresize(raw_image, [FLAGS.image_height, FLAGS.image_width]).astype(np.float)
-            image = (image / 255.0) * 2.0 - 1.0
-
-        filename = os.path.basename(filepath)
-        yield filename, image
-
-#####################  Compute Reward  ####################
+#####################  Prediction Model ####################
 class Classifier(object):
     def __init__(self, input_shape, nb_classes):
         # self.graph = tf.Graph()
@@ -326,6 +299,7 @@ class Classifier(object):
                 _, end_points = inception.inception_v1(self.x_input, num_classes=self.nb_classes, is_training=False)
                 self.pre_labels = tf.argmax(end_points['Predictions'], 1)
                 self.features = end_points['Mixed_5c']
+                self.predictions = end_points['Predictions']
 
             # Restore Model
             saver = tf.train.Saver(tf.contrib.slim.get_model_variables())
@@ -335,23 +309,16 @@ class Classifier(object):
             
             self.sess = tf.train.MonitoredSession(session_creator=session_creator)
 
-    def get_reward(self, images, a, labels):
-        noise_images = np.clip(images + a / 255.0, -1, 1)
-        pre_labels = self.sess.run(self.pre_labels, feed_dict={self.x_input: noise_images})
+    def get_reward(self, images, noise_images, labels):
+        l2_dist = np.linalg.norm(images - noise_images)
 
-        max_norm = 1000
-        if pre_labels[0] == labels[0]:
-            r = -1
-        else:
-            l2_dist = np.linalg.norm((a + 1.0) * 255.0 / 2.0)
-            if l2_dist > max_norm:
-                r = -1
-            else:
-                r = -np.power(2.0, l2_dist / max_norm) + 2.0
-        return r
+        pre_labels, predictions = self.sess.run([self.pre_labels, self.predictions], feed_dict={self.x_input: noise_images})
+        
+        r = np.square(1 - predictions[0][labels[0]]) - 0.1
+        return r, l2_dist, pre_labels
     
     def extract_feature(self, images):
-        return self.sess.run(self.features, feed_dict={self.x_input: images})
+        return self.sess.run([self.features, self.pre_labels], feed_dict={self.x_input: images})
 
 #####################  Main  ####################
 if __name__ == "__main__":
@@ -368,8 +335,8 @@ if __name__ == "__main__":
 
     sess = tf.Session(config=config)
     # Create actor and critic
-    actor = Actor(sess, action_dim, LR_A, REPLACEMENT)
-    critic = Critic(sess, state_dim, action_dim, LR_C, GAMMA, REPLACEMENT, actor.a, actor.a_)
+    actor = Actor(sess, action_dim, FLAGS.LR_A, FLAGS.REPLACEMENT[0])
+    critic = Critic(sess, state_dim, action_dim, FLAGS.LR_C, FLAGS.GAMMA, FLAGS.REPLACEMENT[0], actor.a, actor.a_)
     actor.add_grad_to_graph(critic.a_grads)
 
     sess.run(tf.global_variables_initializer())
@@ -384,34 +351,42 @@ if __name__ == "__main__":
     # initialization classifier
     classifier = Classifier([None, 224, 224, 3], FLAGS.num_classes)
     
-    M = Memory(MEMORY_CAPACITY)
-    var = 3.0  # control exploration
+    M = Memory(FLAGS.MEMORY_CAPACITY)
+    var = 0.001  # control exploration
     start = time.time()
     data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
     for episode in range(FLAGS.max_ep_steps):
-        ep_reward = 0.0
+        # ep_reward = 0.0
         step = 0
         done = False
-        (images, labels, filepaths) = next(data_generator)
-        features = classifier.extract_feature(images)
+        (images, _, filepaths) = next(data_generator)
+        features, labels = classifier.extract_feature(images)
+        noise_images = images
         while not done:
             actions = actor.choose_action(features)
-            actions = np.clip(np.random.normal(actions, var), -1, 1)    # add randomness to action selection for exploration
-            r = classifier.get_reward(images, actions, labels)
-            if r > 0.0:
+            actions = np.clip(np.random.normal(actions, var), -FLAGS.EPSILON, FLAGS.EPSILON)  # add randomness to action selection for exploration
+            noise_images = np.clip(noise_images + actions, -1, 1)
+            r, l2_dist, pre_labels = classifier.get_reward(images, noise_images, labels)
+
+            features_, _ = classifier.extract_feature(noise_images)
+            M.store_transition(features[0], actions[0], r, features_[0])
+            features = features_
+
+            if pre_labels[0] != labels[0]:
                 f = plt.figure()
                 f.add_subplot(1, 2, 1)
+                plt.title('Ture label {}'.format(labels[0]))
                 plt.imshow((images[0] + 1.0) / 2.0)
                 f.add_subplot(1, 2, 2)
-                plt.imshow(np.clip((images[0] + actions[0] / 255.0 + 1) / 2.0, 0, 1))
+                plt.title('Predction label {}'.format(pre_labels[0]))
+                plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
                 # plt.show(block=True)
                 plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
-                plt.cla()
+                plt.clf()
                 done = True
+                print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
 
-            M.store_transition(features[0], actions[0], r, classifier.extract_feature(actions)[0])
-
-            if episode > 0 or step > MEMORY_CAPACITY / 2:
+            if step > FLAGS.MEMORY_CAPACITY/100:
                 var *= .9995    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
@@ -422,15 +397,13 @@ if __name__ == "__main__":
                 critic.learn(b_s, b_a, b_r, b_s_)
                 actor.learn(b_s)
 
-            ep_reward += r
+                # ep_reward += r
 
             if step % 10 == 0:
                 avg_time_per_step = (time.time() - start)/10
-                avg_examples_per_second = (10 * FLAGS.batch_size) /(time.time() - start)
                 start = time.time()
-                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, {:.2f} examples/second, cur_reward: {:.3f}, ep_reward: {:.3f}, Explore: {:.3f}'.format(
-                    episode, step, avg_time_per_step,
-                    avg_examples_per_second, r, ep_reward, 0))
+                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(
+                    episode, step, avg_time_per_step, r, l2_dist, var, labels[0], pre_labels[0]))
             
             step += 1
         ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
