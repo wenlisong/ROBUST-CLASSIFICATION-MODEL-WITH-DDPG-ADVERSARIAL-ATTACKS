@@ -353,12 +353,14 @@ if __name__ == "__main__":
     classifier = Classifier([None, 224, 224, 3], FLAGS.num_classes)
     
     M = Memory(FLAGS.MEMORY_CAPACITY)
-    var = 0.001  # control exploration
+    var = 0.01  # control exploration
     start = time.time()
-    data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
+    
     for episode in range(FLAGS.max_ep_steps):
-        # (images, _, filepaths) = next(data_generator)
+        data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
+        image_cnt = 0
         for images, _, filepaths in data_generator:
+            image_cnt += 1
             step = 0
             done = False
             features, labels = classifier.extract_feature(images)
@@ -391,8 +393,8 @@ if __name__ == "__main__":
                     done = True
                     print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
 
-                if step > FLAGS.MEMORY_CAPACITY/100:
-                    # var *= .9995    # decay the action randomness
+                if image_cnt > FLAGS.MEMORY_CAPACITY:
+                    var *= .9995    # decay the action randomness
                     minibatch = M.sample(FLAGS.batch_size)
                     b_s = [row[0] for row in minibatch]
                     b_a = [row[1] for row in minibatch]
@@ -407,7 +409,7 @@ if __name__ == "__main__":
                 if step % 10 == 0:
                     avg_time_per_step = (time.time() - start)/10
                     start = time.time()
-                    print('Episode:{}, Step {:06d}, {:.2f} seconds/step, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, avg_time_per_step, r, l2_dist, var, labels[0], pre_labels[0]))
+                    print('Episode:{}, image count: {:06d}, Step {:06d}, {:.2f} seconds/step, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, image_cnt, step, avg_time_per_step, r, l2_dist, var, labels[0], pre_labels[0]))
                 
                 step += 1
         ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
