@@ -369,7 +369,7 @@ if __name__ == "__main__":
             r, l2_dist, pre_labels = classifier.get_reward(images, noise_images, labels)
 
             features_, _ = classifier.extract_feature(noise_images)
-            M.store_transition(features[0], actions[0], r, features_[0])
+            M.store_transition(features[0], actions[0], r/10, features_[0])
             features = features_
 
             if pre_labels[0] != labels[0]:
