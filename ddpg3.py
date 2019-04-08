@@ -373,17 +373,21 @@ if __name__ == "__main__":
             features = features_
 
             if pre_labels[0] != labels[0]:
-                f = plt.figure()
-                f.add_subplot(1, 2, 1)
-                plt.title('Ture label {}'.format(labels[0]))
-                plt.imshow((images[0] + 1.0) / 2.0)
-                f.add_subplot(1, 2, 2)
-                plt.title('Predction label {}'.format(pre_labels[0]))
-                plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
-                # plt.show(block=True)
-                plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
-                plt.clf()
-                done = True
+                if l2_dist > 50:
+                    features, _ = classifier.extract_feature(images)
+                    noise_images = images
+                else:
+                    f = plt.figure()
+                    f.add_subplot(1, 2, 1)
+                    plt.title('Ture label {}'.format(labels[0]))
+                    plt.imshow((images[0] + 1.0) / 2.0)
+                    f.add_subplot(1, 2, 2)
+                    plt.title('Predction label {}'.format(pre_labels[0]))
+                    plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
+                    # plt.show(block=True)
+                    plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
+                    plt.clf()
+                    done = True
                 print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
 
             if step > FLAGS.MEMORY_CAPACITY/100:
@@ -406,6 +410,7 @@ if __name__ == "__main__":
                     episode, step, avg_time_per_step, r, l2_dist, var, labels[0], pre_labels[0]))
             
             step += 1
-        ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
+        if episode % 10 == 9:
+            ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
         
         print('Running time: ', time.time() - start)

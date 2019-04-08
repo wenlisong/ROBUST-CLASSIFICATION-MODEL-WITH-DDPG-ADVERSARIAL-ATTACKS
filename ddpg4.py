@@ -24,7 +24,7 @@ tf.flags.DEFINE_list('REPLACEMENT', [
     dict(name='soft', tau=0.01),
     dict(name='hard', rep_iter_a=600, rep_iter_c=500)
     ], 'you can try different target replacement strategies')
-tf.flags.DEFINE_float('EPSILON', 2.0/255.0, 'action bound')
+tf.flags.DEFINE_float('EPSILON', 1.0/255.0, 'action bound')
 tf.flags.DEFINE_string('checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
 tf.flags.DEFINE_string('ddpg_checkpoint_path', './models/ddpg4/', 'Path to checkpoint for ddpg network.')
 tf.flags.DEFINE_string('input_dir', './datasets/train_labels.txt', 'Input directory with images.')
@@ -407,6 +407,7 @@ if __name__ == "__main__":
                     episode, step, avg_time_per_step, r, l2_dist, var, labels[0], pre_labels[0]))
             
             step += 1
-        ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
+        if episode % 10 == 9:
+            ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
         
         print('Running time: ', time.time() - start)
