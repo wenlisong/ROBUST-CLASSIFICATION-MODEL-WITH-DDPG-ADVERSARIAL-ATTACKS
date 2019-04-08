@@ -389,7 +389,7 @@ if __name__ == "__main__":
                     plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
                     # plt.show(block=True)
                     plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
-                    plt.clf()
+                    plt.close()
                     done = True
                     print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
 
