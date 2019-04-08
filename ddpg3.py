@@ -357,62 +357,59 @@ if __name__ == "__main__":
     start = time.time()
     data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
     for episode in range(FLAGS.max_ep_steps):
-        step = 0
-        done = False
-        (images, _, filepaths) = next(data_generator)
-        features, labels = classifier.extract_feature(images)
-        noise_images = images
-        while not done:
-            actions = actor.choose_action(features)
-            actions = np.clip(np.random.normal(actions, var), -FLAGS.EPSILON, FLAGS.EPSILON)  # add randomness to action selection for exploration
-            noise_images = np.clip(noise_images + actions, -1, 1)
-            r, l2_dist, pre_labels = classifier.get_reward(images, noise_images, labels)
+        # (images, _, filepaths) = next(data_generator)
+        for images, _, filepaths in data_generator:
+            step = 0
+            done = False
+            features, labels = classifier.extract_feature(images)
+            noise_images = images
+            while not done:
+                actions = actor.choose_action(features)
+                actions = np.clip(np.random.normal(actions, var), -FLAGS.EPSILON, FLAGS.EPSILON)  # add randomness to action selection for exploration
+                noise_images = np.clip(noise_images + actions, -1, 1)
+                r, l2_dist, pre_labels = classifier.get_reward(images, noise_images, labels)
 
-            features_, _ = classifier.extract_feature(noise_images)
-            if l2_dist > FLAGS.MAX_L2:
-                r = -1.0
-            M.store_transition(features[0], actions[0], r/10.0, features_[0])
-            features = features_
+                features_, _ = classifier.extract_feature(noise_images)
 
-            if l2_dist > FLAGS.MAX_L2:
-                features, _ = classifier.extract_feature(images)
-                noise_images = images
-                continue
+                M.store_transition(features[0], actions[0], r/10.0, features_[0])
+                features = features_
 
-            if pre_labels[0] != labels[0]:
-                f = plt.figure()
-                f.add_subplot(1, 2, 1)
-                plt.title('Ture label {}'.format(labels[0]))
-                plt.imshow((images[0] + 1.0) / 2.0)
-                f.add_subplot(1, 2, 2)
-                plt.title('Predction label {}'.format(pre_labels[0]))
-                plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
-                # plt.show(block=True)
-                plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
-                plt.clf()
-                done = True
-                print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
+                if l2_dist > FLAGS.MAX_L2:
+                    break
 
-            if step > FLAGS.MEMORY_CAPACITY/100:
-                # var *= .9995    # decay the action randomness
-                minibatch = M.sample(FLAGS.batch_size)
-                b_s = [row[0] for row in minibatch]
-                b_a = [row[1] for row in minibatch]
-                b_r = [row[2] for row in minibatch]
-                b_s_ = [row[3] for row in minibatch]
+                if pre_labels[0] != labels[0]:
+                    f = plt.figure()
+                    f.add_subplot(1, 2, 1)
+                    plt.title('Ture label {}'.format(labels[0]))
+                    plt.imshow((images[0] + 1.0) / 2.0)
+                    f.add_subplot(1, 2, 2)
+                    plt.title('Predction label {}'.format(pre_labels[0]))
+                    plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
+                    # plt.show(block=True)
+                    plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
+                    plt.clf()
+                    done = True
+                    print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
 
-                critic.learn(b_s, b_a, b_r, b_s_)
-                actor.learn(b_s)
+                if step > FLAGS.MEMORY_CAPACITY/100:
+                    # var *= .9995    # decay the action randomness
+                    minibatch = M.sample(FLAGS.batch_size)
+                    b_s = [row[0] for row in minibatch]
+                    b_a = [row[1] for row in minibatch]
+                    b_r = [row[2] for row in minibatch]
+                    b_s_ = [row[3] for row in minibatch]
 
-                # ep_reward += r
+                    critic.learn(b_s, b_a, b_r, b_s_)
+                    actor.learn(b_s)
 
-            if step % 10 == 0:
-                avg_time_per_step = (time.time() - start)/10
-                start = time.time()
-                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, avg_time_per_step, r, l2_dist, var, labels[0], pre_labels[0]))
-            
-            step += 1
-        if episode % 10 == 9:
-            ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
+                    # ep_reward += r
+
+                if step % 10 == 0:
+                    avg_time_per_step = (time.time() - start)/10
+                    start = time.time()
+                    print('Episode:{}, Step {:06d}, {:.2f} seconds/step, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, avg_time_per_step, r, l2_dist, var, labels[0], pre_labels[0]))
+                
+                step += 1
+        ac_saver.save(sess, FLAGS.ddpg_checkpoint_path + "model", global_step=episode)
         
         print('Running time: ', time.time() - start)
