@@ -24,7 +24,8 @@ tf.flags.DEFINE_list('REPLACEMENT', [
     dict(name='soft', tau=0.01),
     dict(name='hard', rep_iter_a=600, rep_iter_c=500)
     ], 'you can try different target replacement strategies')
-tf.flags.DEFINE_float('EPSILON', 1.0/255.0, 'action bound')
+tf.flags.DEFINE_float('EPSILON', 1.0 / 255.0, 'action bound')
+tf.flags.DEFINE_float('MAX_L2', 50.0, '')
 tf.flags.DEFINE_string('checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
 tf.flags.DEFINE_string('ddpg_checkpoint_path', './models/ddpg3/', 'Path to checkpoint for ddpg network.')
 tf.flags.DEFINE_string('input_dir', './datasets/train_labels.txt', 'Input directory with images.')
@@ -314,7 +315,7 @@ class Classifier(object):
 
         pre_labels, predictions = self.sess.run([self.pre_labels, self.predictions], feed_dict={self.x_input: noise_images})
         
-        r = np.square(1 - predictions[0][labels[0]]) - 0.1
+        r = np.square(1 - predictions[0][labels[0]])
         return r, l2_dist, pre_labels
     
     def extract_feature(self, images):
@@ -373,7 +374,7 @@ if __name__ == "__main__":
             features = features_
 
             if pre_labels[0] != labels[0]:
-                if l2_dist > 50:
+                if l2_dist > FLAGS.MAX_L2:
                     features, _ = classifier.extract_feature(images)
                     noise_images = images
                 else:
@@ -391,7 +392,7 @@ if __name__ == "__main__":
                 print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
 
             if step > FLAGS.MEMORY_CAPACITY/100:
-                var *= .9995    # decay the action randomness
+                # var *= .9995    # decay the action randomness
                 minibatch = M.sample(FLAGS.batch_size)
                 b_s = [row[0] for row in minibatch]
                 b_a = [row[1] for row in minibatch]
