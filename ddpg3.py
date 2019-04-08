@@ -315,7 +315,7 @@ class Classifier(object):
 
         pre_labels, predictions = self.sess.run([self.pre_labels, self.predictions], feed_dict={self.x_input: noise_images})
         
-        r = np.square(1 - predictions[0][labels[0]])
+        r = np.square(1.0 - predictions[0][labels[0]])
         return r, l2_dist, pre_labels
     
     def extract_feature(self, images):
@@ -357,7 +357,6 @@ if __name__ == "__main__":
     start = time.time()
     data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
     for episode in range(FLAGS.max_ep_steps):
-        # ep_reward = 0.0
         step = 0
         done = False
         (images, _, filepaths) = next(data_generator)
@@ -372,7 +371,7 @@ if __name__ == "__main__":
             features_, _ = classifier.extract_feature(noise_images)
             if l2_dist > FLAGS.MAX_L2:
                 r = -1.0
-            M.store_transition(features[0], actions[0], r/10, features_[0])
+            M.store_transition(features[0], actions[0], r/10.0, features_[0])
             features = features_
 
             if l2_dist > FLAGS.MAX_L2:
@@ -410,8 +409,7 @@ if __name__ == "__main__":
             if step % 10 == 0:
                 avg_time_per_step = (time.time() - start)/10
                 start = time.time()
-                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(
-                    episode, step, avg_time_per_step, r, l2_dist, var, labels[0], pre_labels[0]))
+                print('Episode:{}, Step {:06d}, {:.2f} seconds/step, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, avg_time_per_step, r, l2_dist, var, labels[0], pre_labels[0]))
             
             step += 1
         if episode % 10 == 9:
