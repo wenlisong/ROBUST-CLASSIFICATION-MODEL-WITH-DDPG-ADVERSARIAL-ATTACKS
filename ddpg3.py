@@ -310,16 +310,20 @@ class Classifier(object):
             
             self.sess = tf.train.MonitoredSession(session_creator=session_creator)
 
-    def get_reward(self, images, noise_images, labels):
+    def get_reward(self, images, noise_images, labels, pred_val):
         l2_dist = np.linalg.norm(images - noise_images)
 
         pre_labels, predictions = self.sess.run([self.pre_labels, self.predictions], feed_dict={self.x_input: noise_images})
         
-        r = np.square(1.0 - predictions[0][labels[0]])
+        # if predictions[0] > pred_val:
+        #     r = -
+        # r = np.square(1.0 - predictions[0][labels[0]])
+        r = (pred_val - predictions[0][labels[0]]) / pred_val
         return r, l2_dist, pre_labels
     
     def extract_feature(self, images):
-        return self.sess.run([self.features, self.pre_labels], feed_dict={self.x_input: images})
+        features, labels, predictions = self.sess.run([self.features, self.pre_labels, self.predictions], feed_dict={self.x_input: images})
+        return features, labels, predictions.max()
 
 #####################  Main  ####################
 if __name__ == "__main__":
@@ -363,13 +367,13 @@ if __name__ == "__main__":
             image_cnt += 1
             step = 0
             done = False
-            features, labels = classifier.extract_feature(images)
+            features, labels, pred_val = classifier.extract_feature(images)
             noise_images = images
             while not done:
                 actions = actor.choose_action(features)
                 actions = np.clip(np.random.normal(actions, var), -FLAGS.EPSILON, FLAGS.EPSILON)  # add randomness to action selection for exploration
                 noise_images = np.clip(noise_images + actions, -1, 1)
-                r, l2_dist, pre_labels = classifier.get_reward(images, noise_images, labels)
+                r, l2_dist, pre_labels = classifier.get_reward(images, noise_images, labels, pred_val)
 
                 features_, _ = classifier.extract_feature(noise_images)
 
@@ -395,7 +399,7 @@ if __name__ == "__main__":
 
                 if image_cnt > FLAGS.MEMORY_CAPACITY:
                     var *= .9995    # decay the action randomness
-                    minibatch = M.sample(FLAGS.batch_size)
+                    minibatch = M.sample(FLAGS.batch_size)   
                     b_s = [row[0] for row in minibatch]
                     b_a = [row[1] for row in minibatch]
                     b_r = [row[2] for row in minibatch]
