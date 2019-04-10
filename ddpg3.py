@@ -375,7 +375,7 @@ if __name__ == "__main__":
                 noise_images = np.clip(noise_images + actions, -1, 1)
                 r, l2_dist, pre_labels = classifier.get_reward(images, noise_images, labels, pred_val)
 
-                features_, _ = classifier.extract_feature(noise_images)
+                features_, _, _ = classifier.extract_feature(noise_images)
 
                 M.store_transition(features[0], actions[0], r/10.0, features_[0])
                 features = features_
