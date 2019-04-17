@@ -415,7 +415,6 @@ if __name__ == "__main__":
                         Image.fromarray(img).save(f, format='JPEG')
                     done = True
                     print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
-                    import pdb; pdb.set_trace()
 
                 if image_cnt > FLAGS.MEMORY_CAPACITY:
                     # var *= .9995    # decay the action randomness
