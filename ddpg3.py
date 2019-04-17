@@ -9,6 +9,7 @@ import random
 from tensorflow.contrib.slim.nets import inception
 import time
 from mytools import load_path_label
+from PIL import Image
 
 
 np.random.seed(1)
@@ -29,7 +30,8 @@ tf.flags.DEFINE_float('MAX_L2', 50.0, '')
 tf.flags.DEFINE_string('checkpoint_path', './defense_example/models/inception_v1/inception_v1.ckpt', 'Path to checkpoint for inception network.')
 tf.flags.DEFINE_string('ddpg_checkpoint_path', './models/ddpg3/', 'Path to checkpoint for ddpg network.')
 tf.flags.DEFINE_string('input_dir', './datasets/train_labels.txt', 'Input directory with images.')
-tf.flags.DEFINE_string('output_dir', './output-example3/', 'Output directory to save adversarial image.')
+tf.flags.DEFINE_string('output_plt_dir', './output-example3/', 'Output directory to save plot images.')
+tf.flags.DEFINE_string('output_adv_dir', './datasets/adversarial-examples', 'Output directory to save adversarial image.')
 tf.flags.DEFINE_string('output_file', './output-defense.txt', 'Output file to save labels.')
 tf.flags.DEFINE_integer('image_width', 224, 'Width of each input images.')
 tf.flags.DEFINE_integer('image_height', 224, 'Height of each input images.')
@@ -363,7 +365,7 @@ if __name__ == "__main__":
     for episode in range(FLAGS.max_ep_steps):
         data_generator = load_path_label(FLAGS.input_dir, [1, FLAGS.image_height, FLAGS.image_width, 3])
         image_cnt = 0
-        for images, _, filepaths in data_generator:
+        for images, true_labels, filepaths in data_generator:
             image_cnt += 1
             step = 0
             done = False
@@ -372,6 +374,7 @@ if __name__ == "__main__":
             while not done:
                 actions = actor.choose_action(features)
                 actions = np.clip(np.random.normal(actions, var), -FLAGS.EPSILON, FLAGS.EPSILON)  # add randomness to action selection for exploration
+
                 noise_images = np.clip(noise_images + actions, -1, 1)
                 r, l2_dist, pre_labels = classifier.get_reward(images, noise_images, labels, pred_val)
 
@@ -384,21 +387,34 @@ if __name__ == "__main__":
                     break
 
                 if pre_labels[0] != labels[0]:
+                    ### save plot image ###
                     f = plt.figure()
-                    f.add_subplot(1, 2, 1)
-                    plt.title('Ture label {}'.format(labels[0]))
+                    # original image
+                    f.add_subplot(1, 3, 1)
+                    plt.title('True label {}, predicted label {}'.format(true_labels[0], labels[0]))
                     plt.imshow((images[0] + 1.0) / 2.0)
-                    f.add_subplot(1, 2, 2)
-                    plt.title('Predction label {}'.format(pre_labels[0]))
+                    # cumulative noise
+                    cumulative_noise = (noise_images[0]-images[0]+ 1.0) / 2.0
+                    f.add_subplot(1, 3, 2)
+                    plt.title('cumulative noise, distance={}'.format(np.linalg.norm(cumulative_noise)))
+                    plt.imshow(cumulative_noise)
+                    # noise image
+                    f.add_subplot(1, 3, 3)
+                    plt.title('Predicted label {}'.format(pre_labels[0]))
                     plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
                     # plt.show(block=True)
-                    plt.savefig(FLAGS.output_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
+                    plt.savefig(FLAGS.output_plt_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
                     plt.close()
+                    ### save noise image for training ###
+                    fn = '{}/{:5d}/{}.jpg'.format(FLAGS.output_adv_dir, true_labels[0], filepaths[0].split('/')[-1].split('.')[0])
+                    with open(fn, 'w') as f:
+                        img = (((noise_images[0] + 1.0) * 0.5) * 255.0)#.astype(np.uint8)
+                        Image.fromarray(img).save(f, format='JPEG')
                     done = True
                     print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
 
                 if image_cnt > FLAGS.MEMORY_CAPACITY:
-                    var *= .9995    # decay the action randomness
+                    # var *= .9995    # decay the action randomness
                     minibatch = M.sample(FLAGS.batch_size)   
                     b_s = [row[0] for row in minibatch]
                     b_a = [row[1] for row in minibatch]
