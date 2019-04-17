@@ -416,7 +416,7 @@ if __name__ == "__main__":
                     done = True
                     print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
 
-                if image_cnt > FLAGS.MEMORY_CAPACITY:
+                if image_cnt > FLAGS.MEMORY_CAPACITY and step % 10 == 0:
                     # var *= .9995    # decay the action randomness
                     minibatch = M.sample(FLAGS.batch_size)   
                     b_s = [row[0] for row in minibatch]
