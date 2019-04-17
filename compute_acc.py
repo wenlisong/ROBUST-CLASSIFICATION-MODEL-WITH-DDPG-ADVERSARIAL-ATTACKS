@@ -11,6 +11,8 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_string(
     'train_data_dir', './datasets/train_labels.txt', 'Input directory with images.')
 tf.flags.DEFINE_string(
+    'adv_data_dir', './datasets/adversarial_labels.txt', 'Input directory with images.')
+tf.flags.DEFINE_string(
     'output_file', None, 'Output file to save labels.')
 tf.flags.DEFINE_integer(
     'image_width', 224, 'Width of each input images.')
@@ -29,7 +31,7 @@ def gaussian_noise_layer(input_layer, std):
 def main(argv=None):
     print("This script is used to compute accuracy!")
     if len(argv) < 2:
-        print("No argv! You need to assign train/test data as below:")
+        print("No argv! You need to assign train/test/adv data as below:")
         print("Try: python compute_acc.py train, python compute_acc.py test\n")
         return
 
@@ -67,6 +69,9 @@ def main(argv=None):
             elif argv[1] == 'train':
                 INPUT_DIR = FLAGS.train_data_dir
                 FLAGS.output_file = './result/train_accuracy.txt'
+            elif argv[1] == 'adv':
+                INPUT_DIR = FLAGS.adv_data_dir
+                FLAGS.output_file = './result/adversarial_accuracy.txt'
 
             data_generator = load_path_label(INPUT_DIR, batch_shape, shuffle=False)
 
@@ -74,7 +79,7 @@ def main(argv=None):
             for i in range(FLAGS.num_classes):
                 acc_dict[i] = [0, 0]
                 
-            for images, true_labels in tqdm(data_generator):
+            for images, true_labels, _ in tqdm(data_generator):
                 labels = sess.run(predicted_labels, feed_dict={x_input: images})
                 for i in range(len(true_labels)):
                     acc_dict[true_labels[i]][1] += 1
@@ -88,7 +93,10 @@ def main(argv=None):
                 for i in range(FLAGS.num_classes):
                     total_true += acc_dict[i][0]
                     total_count += acc_dict[i][1]
-                    f.writelines("class: %d, accuracy: %d/%d = %.3f \n" % (i, acc_dict[i][0], acc_dict[i][1], acc_dict[i][0] / acc_dict[i][1]))
+                    if acc_dict[i][1] == 0:
+                        f.writelines("class: %d, accuracy: %d/%d = %.3f \n" % (i, acc_dict[i][0], acc_dict[i][1], 0))
+                    else:
+                        f.writelines("class: %d, accuracy: %d/%d = %.3f \n" % (i, acc_dict[i][0], acc_dict[i][1], acc_dict[i][0] / acc_dict[i][1]))
                 
                 print("Total accuracy: %.3f \n" % (total_true / total_count))
                 f.writelines("Total accuracy: %.3f \n" % (total_true / total_count))

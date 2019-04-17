@@ -388,22 +388,25 @@ if __name__ == "__main__":
 
                 if pre_labels[0] != labels[0]:
                     ### save plot image ###
-                    f = plt.figure()
+                    f = plt.figure(figsize=(12,4))
                     # original image
-                    f.add_subplot(3, 1, 1)
-                    plt.title('True label {}, predicted label {}'.format(true_labels[0], labels[0]))
+                    f.add_subplot(1, 3, 1)
+                    plt.title('original image\ntrue label {}\npredicted label {}'.format(true_labels[0], labels[0]))
                     plt.imshow((images[0] + 1.0) / 2.0)
                     # cumulative noise
                     cumulative_noise = (noise_images[0]-images[0]+ 1.0) / 2.0
-                    f.add_subplot(3, 1, 2)
-                    plt.title('cumulative noise, distance={}'.format(l2_dist))
+                    f.add_subplot(1, 3, 2)
+                    plt.title('noise\ndistance={:.3f}'.format(l2_dist))
+                    plt.ylabel('+',rotation=0, fontsize=20, labelpad=20)
                     plt.imshow(cumulative_noise)
                     # noise image
-                    f.add_subplot(3, 1, 3)
-                    plt.title('Predicted label {}'.format(pre_labels[0]))
+                    f.add_subplot(1, 3, 3)
+                    plt.title('adversarial image\npredicted label {}'.format(pre_labels[0]))
                     plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
+                    plt.ylabel('=',rotation=0, fontsize=20, labelpad=20)
+                    plt.tight_layout()
                     # plt.show(block=True)
-                    plt.savefig(FLAGS.output_plt_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
+                    plt.savefig(FLAGS.output_plt_dir + filepaths[0].split('/')[-1].split('.')[0] + '.pdf', format='pdf')
                     plt.close()
                     ### save noise image for training ###
                     fn = '{}/{:05d}/{}.jpg'.format(FLAGS.output_adv_dir, true_labels[0], filepaths[0].split('/')[-1].split('.')[0])
@@ -412,6 +415,7 @@ if __name__ == "__main__":
                         Image.fromarray(img).save(f, format='JPEG')
                     done = True
                     print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
+                    import pdb; pdb.set_trace()
 
                 if image_cnt > FLAGS.MEMORY_CAPACITY:
                     # var *= .9995    # decay the action randomness
