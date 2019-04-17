@@ -406,7 +406,7 @@ if __name__ == "__main__":
                     plt.savefig(FLAGS.output_plt_dir + filepaths[0].split('/')[-1].split('.')[0] + '.png')
                     plt.close()
                     ### save noise image for training ###
-                    fn = '{}/{:5d}/{}.jpg'.format(FLAGS.output_adv_dir, true_labels[0], filepaths[0].split('/')[-1].split('.')[0])
+                    fn = '{}/{:05d}/{}.jpg'.format(FLAGS.output_adv_dir, true_labels[0], filepaths[0].split('/')[-1].split('.')[0])
                     with open(fn, 'w') as f:
                         img = (((noise_images[0] + 1.0) * 0.5) * 255.0)#.astype(np.uint8)
                         Image.fromarray(img).save(f, format='JPEG')
