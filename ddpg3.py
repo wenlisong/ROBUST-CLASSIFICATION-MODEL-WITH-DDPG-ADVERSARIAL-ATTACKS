@@ -396,7 +396,7 @@ if __name__ == "__main__":
                     # cumulative noise
                     cumulative_noise = (noise_images[0]-images[0]+ 1.0) / 2.0
                     f.add_subplot(1, 3, 2)
-                    plt.title('cumulative noise, distance={}'.format(np.linalg.norm(cumulative_noise)))
+                    plt.title('cumulative noise, distance={}'.format(l2_dist))
                     plt.imshow(cumulative_noise)
                     # noise image
                     f.add_subplot(1, 3, 3)
@@ -408,7 +408,7 @@ if __name__ == "__main__":
                     ### save noise image for training ###
                     fn = '{}/{:05d}/{}.jpg'.format(FLAGS.output_adv_dir, true_labels[0], filepaths[0].split('/')[-1].split('.')[0])
                     with open(fn, 'w') as f:
-                        img = (((noise_images[0] + 1.0) * 0.5) * 255.0)#.astype(np.uint8)
+                        img = (((noise_images[0] + 1.0) * 0.5) * 255.0).astype(np.uint8)
                         Image.fromarray(img).save(f, format='JPEG')
                     done = True
                     print('Episode:{}, Step {:06d}, cur_reward: {:.3f}, distance: {:.3f}, exploration: {:.3f}, true label/pre label: {}/{}'.format(episode, step, r, l2_dist, var, labels[0], pre_labels[0]))
