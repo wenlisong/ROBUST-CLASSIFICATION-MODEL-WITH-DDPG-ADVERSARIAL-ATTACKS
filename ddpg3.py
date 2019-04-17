@@ -317,10 +317,10 @@ class Classifier(object):
 
         pre_labels, predictions = self.sess.run([self.pre_labels, self.predictions], feed_dict={self.x_input: noise_images})
         
-        # if predictions[0] > pred_val:
-        #     r = -
-        # r = np.square(1.0 - predictions[0][labels[0]])
-        r = (pred_val - predictions[0][labels[0]]) / pred_val + (FLAGS.MAX_L2-l2)/FLAGS.MAX_L2
+        if pre_labels[0] == labels[0]:
+            r = (pred_val - predictions[0][labels[0]]) / pred_val
+        else:
+            r = (pred_val - predictions[0][labels[0]]) / pred_val + (FLAGS.MAX_L2-l2)/FLAGS.MAX_L2
         return r, l2_dist, pre_labels
     
     def extract_feature(self, images):
