@@ -4,10 +4,10 @@ import random
 from scipy.misc import imread, imresize
 from PIL import Image
 
-def generate_txt_label(ROOT_DIR = "./datasets/IJCAI_2019_AAAC_train"):
-    with open("./datasets/labels.txt", "w") as f:
-        for label in os.listdir(ROOT_DIR):
-            SUBSET_DIR = os.path.join(ROOT_DIR, label)
+def generate_txt_label(data_path="./datasets/IJCAI_2019_AAAC_train", labeltxt_path="./datasets/labels.txt"):
+    with open(labeltxt_path, "w") as f:
+        for label in os.listdir(data_path):
+            SUBSET_DIR = os.path.join(data_path, label)
             for imagename in os.listdir(SUBSET_DIR):
                 f.writelines("{}\t{}\n".format(os.path.join(SUBSET_DIR, imagename), int(label)))
 
@@ -58,7 +58,7 @@ def load_path_label(fname=None, batch_shape=None, separator='\t', shuffle=True, 
             yield images, labels, filepaths
 
 if __name__ == "__main__":
-    generate_txt_label()
+    generate_txt_label(data_path="./datasets/adversarial-examples", labeltxt_path="./datasets/adversarial_labels.txt")
     #data = load_path_label("./labels.txt", batch_shape=[4, 224, 224, 3])
     #for images, labels in data:
     #    print(images, labels)

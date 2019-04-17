@@ -38,8 +38,8 @@ tf.flags.DEFINE_integer('image_height', 224, 'Height of each input images.')
 tf.flags.DEFINE_integer('batch_size', 32, 'Batch size to processing images')
 tf.flags.DEFINE_integer('nb_pixel', 224*224*3, 'The number of pixelx in a image')
 tf.flags.DEFINE_integer('num_classes', 110, 'How many classes of the data set')
-tf.app.flags.DEFINE_integer('max_ep_steps', 10000, 'The number of epoch times')
-tf.app.flags.DEFINE_integer('max_steps', 100000, 'The number of training times')
+tf.flags.DEFINE_integer('max_ep_steps', 10000, 'The number of epoch times')
+tf.flags.DEFINE_integer('max_steps', 100000, 'The number of training times')
 FLAGS = tf.flags.FLAGS
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -320,7 +320,7 @@ class Classifier(object):
         # if predictions[0] > pred_val:
         #     r = -
         # r = np.square(1.0 - predictions[0][labels[0]])
-        r = (pred_val - predictions[0][labels[0]]) / pred_val
+        r = (pred_val - predictions[0][labels[0]]) / pred_val + (FLAGS.MAX_L2-l2)/FLAGS.MAX_L2
         return r, l2_dist, pre_labels
     
     def extract_feature(self, images):

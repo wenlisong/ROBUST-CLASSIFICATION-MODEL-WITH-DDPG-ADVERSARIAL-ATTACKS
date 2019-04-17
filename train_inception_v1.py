@@ -18,7 +18,7 @@ from mytools import load_path_label
 
 tf.flags.DEFINE_string(
     'checkpoint_path', './defense_example/models/inception_v1/', 'Path to checkpoint for inception network.')
-tf.app.flags.DEFINE_boolean(
+tf.flags.DEFINE_boolean(
     'restore', True, 'whether to resotre from checkpoint')
 tf.flags.DEFINE_string(
     'input_dir', '', 'Input directory with images.')
@@ -29,14 +29,16 @@ tf.flags.DEFINE_integer(
 tf.flags.DEFINE_integer(
     'image_height', 224, 'Height of each input images.')
 tf.flags.DEFINE_integer(
-    'batch_size', 16, 'Batch size to processing images')
+    'batch_size', 32, 'Batch size to processing images')
 tf.flags.DEFINE_integer(
     'num_classes', 110, 'How many classes of the data set')
-tf.app.flags.DEFINE_float(
+tf.flags.DEFINE_float(
     'learning_rate', 0.0001, '')
-tf.app.flags.DEFINE_integer(
-    'max_steps', 100000, 'The number of training times')
-tf.app.flags.DEFINE_string(
+tf.flags.DEFINE_integer(
+    'max_epochs', 1, 'The number of epochs')
+tf.flags.DEFINE_integer(
+    'max_steps', 3437, 'The number of steps')
+tf.flags.DEFINE_string(
     'pretrained_model_path', None, '')
 
 FLAGS = tf.flags.FLAGS
@@ -88,7 +90,7 @@ def main(_):
     loss_op = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=input_labels)
     total_loss_op = tf.reduce_mean(loss_op)
     train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss_op)
-
+    tf.summary.scalar('total loss', total_loss_op)
 
     summary_op = tf.summary.merge_all()
 
@@ -111,25 +113,27 @@ def main(_):
             if FLAGS.pretrained_model_path is not None:
                 variable_restore_op(sess)
 
+        for epoch in range(FLAGS.max_epochs):
+            start = time.time()
+            data_generator = load_path_label('./datasets/train_labels.txt', batch_shape, onehot=True)
+            for step in range(FLAGS.max_steps):
+                data = next(data_generator)
+                _, total_loss, res = sess.run([train_op, total_loss_op, summary_op], feed_dict={input_images: data[0], input_labels:data[1]})
+                if step % 50 == 0:
+                    summary_writer.add_summary(res, step)
+                
+                if np.isnan(total_loss):
+                    print('Loss diverged, stop training')
+                    break
 
-        start = time.time()
-
-        data_generator = load_path_label('labels.txt', batch_shape, onehot=True)
-        for step in range(FLAGS.max_steps):
-            data = next(data_generator)
-            _, total_loss = sess.run([train_op, total_loss_op], feed_dict={input_images: data[0], input_labels:data[1]})
+                if step % 10 == 0:
+                    avg_time_per_step = (time.time() - start)/10
+                    avg_examples_per_second = (10 * FLAGS.batch_size) /(time.time() - start)
+                    start = time.time()
+                    print('Step {:06d}, total loss {:.4f}, {:.2f} seconds/step, {:.2f} examples/second'.format(
+                        step, total_loss, avg_time_per_step, avg_examples_per_second))
             
-            if np.isnan(total_loss):
-                print('Loss diverged, stop training')
-                break
-
-            if step % 10 == 0:
-                avg_time_per_step = (time.time() - start)/10
-                avg_examples_per_second = (10 * FLAGS.batch_size) /(time.time() - start)
-                start = time.time()
-                print('Step {:06d}, total loss {:.4f}, {:.2f} seconds/step, {:.2f} examples/second'.format(
-                    step, total_loss, avg_time_per_step, avg_examples_per_second))
-        # saver.save(sess, )
+            saver.save(sess, FLAGS.checkpoint_path+'robust_model', global_step=epoch)
 
 if __name__ == '__main__':
     tf.app.run()
