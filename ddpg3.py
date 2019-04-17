@@ -390,16 +390,16 @@ if __name__ == "__main__":
                     ### save plot image ###
                     f = plt.figure()
                     # original image
-                    f.add_subplot(1, 3, 1)
+                    f.add_subplot(3, 1, 1)
                     plt.title('True label {}, predicted label {}'.format(true_labels[0], labels[0]))
                     plt.imshow((images[0] + 1.0) / 2.0)
                     # cumulative noise
                     cumulative_noise = (noise_images[0]-images[0]+ 1.0) / 2.0
-                    f.add_subplot(1, 3, 2)
+                    f.add_subplot(3, 1, 2)
                     plt.title('cumulative noise, distance={}'.format(l2_dist))
                     plt.imshow(cumulative_noise)
                     # noise image
-                    f.add_subplot(1, 3, 3)
+                    f.add_subplot(3, 1, 3)
                     plt.title('Predicted label {}'.format(pre_labels[0]))
                     plt.imshow(np.clip((noise_images[0] + 1) / 2.0, 0, 1))
                     # plt.show(block=True)

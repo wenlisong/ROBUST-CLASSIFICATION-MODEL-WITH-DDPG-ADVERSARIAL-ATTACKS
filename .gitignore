@@ -10,5 +10,6 @@ train_dir/*
 datasets/IJCAI*
 datasets/dev_data
 datasets/nontarget-attack
+datasets/adversarial-examples
 models/
 output*/
