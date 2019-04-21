@@ -35,7 +35,7 @@ tf.flags.DEFINE_integer(
 tf.flags.DEFINE_float(
     'learning_rate', 0.0001, '')
 tf.flags.DEFINE_integer(
-    'max_epochs', 1, 'The number of epochs')
+    'max_epochs', 50, 'The number of epochs')
 tf.flags.DEFINE_integer(
     'max_steps', 3437, 'The number of steps')
 tf.flags.DEFINE_string(
