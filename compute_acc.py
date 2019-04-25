@@ -47,7 +47,7 @@ def main(argv=None):
     with tf.Graph().as_default():
         print("Prepare graph...")
         x_input = tf.placeholder(tf.float32, shape=batch_shape)
-        noise_input = gaussian_noise_layer(x_input, .2)
+        noise_input = gaussian_noise_layer(x_input, .0)
 
         with slim.arg_scope(inception.inception_v1_arg_scope()):
             _, end_points = inception.inception_v1(

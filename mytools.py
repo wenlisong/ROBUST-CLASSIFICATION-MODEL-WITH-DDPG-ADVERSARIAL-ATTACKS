@@ -36,7 +36,11 @@ def load_path_label(fname=None, batch_shape=None, separator='\t', shuffle=True, 
             filepath = x[0]
             # with open(filepath, 'rb') as img:
                 # raw_image = imread(img, mode='RGB')
-            raw_image = Image.open(filepath).convert('RGB')
+            try:
+                raw_image = Image.open(filepath).convert('RGB')
+            except IOError:
+                print(filepath)
+                continue
             image = preprocessor(raw_image)
             images[idx, :, :, :] = image
             if onehot:
